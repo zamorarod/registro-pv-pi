@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0093DD">
+<title>Registro de PV e PI</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --ink:#0B1F33; --papel:#F2F5F6; --branco:#fff; --fio:#DCE1E4; --muted:#3D4954; --sutil:#5F6B75;
+    --sabesp:#0093DD; --acento:#0072AD; --agua-bg:#E5F4FC; --ok:#1E7B34; --erro:#C0392B;
+    --pv:#4A5560; --pv-bg1:#EEF1F4; --pv-bg2:#D8DEE4;
+    --pi:#0072AD; --pi-bg1:#EAF7FF; --pi-bg2:#CFEBFB;
+    --display:"Archivo",system-ui,sans-serif; --texto:"IBM Plex Sans",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;min-height:100%}
+  body{font:17.5px/1.55 var(--texto);color:var(--ink);background:#D8DEE1}
+  #tela{max-width:480px;margin:0 auto;min-height:100vh;background:var(--papel);display:flex;flex-direction:column;position:relative}
+  header{background:var(--branco);color:var(--ink);padding:14px 20px 12px;border-bottom:4px solid var(--sabesp)}
+  header h1{font:800 23px/1.1 var(--display);margin:0;letter-spacing:-.01em}
+  header .sub{font-size:14px;color:var(--sutil);margin-top:2px}
+  main{flex:1;padding:18px 20px 26px;display:flex;flex-direction:column;gap:16px}
+  h2{font:700 24px/1.25 var(--display);margin:4px 0 0;letter-spacing:-.01em}
+  .ajuda{color:var(--sutil);font-size:15.5px;margin:0}
+  .junto{white-space:nowrap}
+  label{font-weight:600;font-size:16.5px;display:block;margin-bottom:6px}
+  input[type=text],textarea{width:100%;padding:16px;font:inherit;font-size:17.5px;border:1.5px solid var(--fio);border-radius:12px;background:var(--branco);color:var(--ink)}
+  input:focus,textarea:focus{outline:2px solid var(--acento);border-color:var(--acento)}
+  textarea{resize:none}
+  .maiusc{text-transform:uppercase}
+  .btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:17px;border:0;border-radius:14px;background:var(--acento);color:#fff;font:700 19px var(--texto);cursor:pointer}
+  .btn:active{filter:brightness(.92)}
+  .btn[disabled]{background:#AFBCC4;cursor:not-allowed}
+  .btn.fantasma{background:transparent;color:var(--muted);font-weight:600;padding:10px}
+  .btn-gps{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border:1.5px solid var(--acento);border-radius:12px;background:var(--branco);color:var(--acento);font:600 17px var(--texto);cursor:pointer}
+  .btn-gps:active{background:var(--agua-bg)}
+  .cartaozao{display:flex;align-items:center;gap:14px;width:100%;min-height:106px;border:2px solid var(--fio);border-radius:18px;background:var(--branco);padding:16px 44px 16px 16px;font:inherit;cursor:pointer;text-align:left;transition:transform .06s, border-color .15s, box-shadow .15s;box-shadow:0 1px 2px rgba(11,31,51,.05), 0 5px 16px rgba(11,31,51,.08);position:relative}
+  .cartaozao::after{content:"›";position:absolute;right:17px;top:50%;transform:translateY(-52%);font-size:24px;color:#B9C4CB;font-weight:600}
+  .cartaozao:active{transform:scale(.98);box-shadow:0 1px 3px rgba(11,31,51,.08)}
+  .cartaozao .icone{width:58px;height:58px;border-radius:15px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:inset 0 0 0 1px rgba(11,31,51,.06)}
+  .cartaozao .icone svg{width:35px;height:35px}
+  .cartaozao b{font-size:19px;line-height:1.2;display:block;margin-bottom:3px;color:var(--ink)}
+  .cartaozao span{color:var(--sutil);font-size:14px;line-height:1.35}
+  .cartaozao.pv .icone{background:linear-gradient(150deg,var(--pv-bg1),var(--pv-bg2))}
+  .cartaozao.pv:active{border-color:var(--pv)}
+  .cartaozao.pi .icone{background:linear-gradient(150deg,var(--pi-bg1),var(--pi-bg2))}
+  .cartaozao.pi:active{border-color:var(--pi)}
+  .chip-tipo{display:inline-flex;align-items:center;gap:7px;background:var(--agua-bg);color:#005B8E;font-weight:700;border-radius:9px;padding:4px 12px;font-size:15px;align-self:flex-start}
+  .fotos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .foto-slot{aspect-ratio:4/3;border:2px dashed #A6B3BA;border-radius:14px;background:var(--branco);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--sutil);font-size:14px;cursor:pointer;overflow:hidden;position:relative;text-align:center;padding:4px}
+  .foto-slot .cam{font-size:30px}
+  .foto-slot.precisa{border-color:var(--acento);color:var(--acento)}
+  .foto-slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#0B1F33}
+  .foto-slot .selo{position:absolute;left:6px;top:6px;background:rgba(11,31,51,.85);color:#fff;font-size:12px;font-weight:600;border-radius:6px;padding:3px 8px;z-index:2}
+  .foto-slot .rm{position:absolute;top:6px;right:6px;background:rgba(11,31,51,.85);color:#fff;border:0;border-radius:50%;width:30px;height:30px;font-size:15px;cursor:pointer;z-index:2}
+  #visor{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px}
+  #visor img{max-width:100%;max-height:80vh;border-radius:8px}
+  #visor .fechar{background:#fff;color:var(--ink);border:0;border-radius:12px;padding:12px 26px;font:700 17px var(--texto)}
+  #mapa{height:220px;border-radius:14px;border:1px solid var(--fio);overflow:hidden}
+  .endereco{display:flex;gap:10px;align-items:flex-start;background:var(--branco);border:1px solid var(--fio);border-radius:12px;padding:13px 15px;font-size:15.5px;color:var(--muted)}
+  .endereco .pin{font-size:18px;line-height:1.2}
+  .endereco b{color:var(--ink)}
+  .erro-msg{color:var(--erro);font-size:15.5px;font-weight:600;display:none}
+  .recibo{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding-top:22px}
+  .recibo .check{width:92px;height:92px;border-radius:50%;background:#E6F3E9;color:var(--ok);display:flex;align-items:center;justify-content:center;font-size:48px}
+  .recibo h2{font-size:27px}
+  .protocolo{background:var(--ink);color:#fff;border-radius:14px;padding:15px 26px;font:800 24px var(--display);letter-spacing:.04em}
+  .recibo-det{width:100%;background:var(--branco);border:1px solid var(--fio);border-radius:14px;padding:6px 16px;text-align:left;font-size:15.5px}
+  .recibo-det div{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid #EDF0F2}
+  .recibo-det div:last-child{border-bottom:0}
+  .recibo-det span{color:var(--sutil)}
+  .recibo-det b{text-align:right}
+  .aviso-demo{background:#FFF4D6;border:1px solid #E5C877;color:#7a5a00;border-radius:12px;padding:12px 15px;font-size:14px;text-align:center}
+  .nota{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;color:var(--sutil);padding:2px 4px}
+  footer{padding:0 20px 18px;text-align:center;font-size:12.5px;color:var(--sutil)}
+  .oculta{display:none!important}
+</style>
+</head>
+<body>
+<div id="tela">
+<header>
+  <h1>Registro de PV e PI</h1>
+  <div class="sub">Cadastro rápido <span class="junto">em campo</span></div>
+</header>
+
+<!-- TELA 1: identificação -->
+<main id="t1">
+  <h2>Quem está <span class="junto">registrando?</span></h2>
+  <p class="ajuda">Preencha uma vez e o app guarda seus dados <span class="junto">neste aparelho.</span></p>
+  <div>
+    <label for="nome">Seu nome</label>
+    <input type="text" id="nome" class="maiusc" placeholder="NOME E SOBRENOME" maxlength="60" autocomplete="name" autocapitalize="characters" oninput="maiuscula(this)">
+  </div>
+  <div>
+    <label for="empresa">Empresa</label>
+    <input type="text" id="empresa" class="maiusc" placeholder="NOME DA EMPRESA" maxlength="40" autocapitalize="characters" oninput="maiuscula(this)">
+  </div>
+  <div class="nota">🔒 <span>Nome e empresa identificam o registro e ficam gravados junto com as fotos enviadas.</span></div>
+  <div class="erro-msg" id="erro1">Preencha o nome e a empresa para continuar.</div>
+  <button class="btn" onclick="iniciar()">Iniciar</button>
+</main>
+
+<!-- TELA 2: tipo -->
+<main id="t2" class="oculta">
+  <h2 style="text-align:center">O que você vai <span class="junto">registrar?</span></h2>
+  <p class="ajuda" style="text-align:center">Toque em uma das <span class="junto">opções.</span></p>
+  <button class="cartaozao pv" onclick="escolher('PV')">
+    <span class="icone"><svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="16.5" rx="8.5" ry="3.2" fill="#4A5560"/><ellipse cx="12" cy="15.6" rx="8.5" ry="3.2" fill="#6B7680" stroke="#3A444E" stroke-width="1"/><ellipse cx="12" cy="15.6" rx="5.2" ry="1.9" fill="none" stroke="#3A444E" stroke-width=".9"/><path d="M9.2 15.6h5.6M12 14.3v2.6" stroke="#3A444E" stroke-width=".9"/></svg></span>
+    <span><b>PV</b><span>Poço de visita</span></span>
+  </button>
+  <button class="cartaozao pi" onclick="escolher('PI')">
+    <span class="icone"><svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="16.5" rx="6.8" ry="2.6" fill="#0072AD"/><ellipse cx="12" cy="15.7" rx="6.8" ry="2.6" fill="#2E9BD6" stroke="#005B8E" stroke-width="1"/><ellipse cx="12" cy="15.7" rx="3.6" ry="1.4" fill="#EAF7FF" stroke="#005B8E" stroke-width=".9"/><path d="M12 3.5v7M9.6 8.1 12 10.5l2.4-2.4" stroke="#0072AD" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    <span><b>PI</b><span>Poço de inspeção</span></span>
+  </button>
+  <button class="btn fantasma" onclick="irPara(1)">‹ Trocar nome ou empresa</button>
+</main>
+
+<!-- TELA 3: registro -->
+<main id="t3" class="oculta">
+  <div class="chip-tipo" id="chipTipo">PV</div>
+  <h2>Fotos e local</h2>
+  <p class="ajuda">Tire 2 fotos do local (obrigatórias). Se quiser, acrescente mais 2. Confira se o pino do mapa está bem em cima do <span id="tipoTxt">PV</span>.</p>
+  <div class="fotos">
+    <div class="foto-slot precisa" id="slot0" role="button" tabindex="0" onclick="abrirCamera(0)"><span class="cam">📷</span><span>Foto 1<br><b>obrigatória</b></span></div>
+    <div class="foto-slot precisa" id="slot1" role="button" tabindex="0" onclick="abrirCamera(1)"><span class="cam">📷</span><span>Foto 2<br><b>obrigatória</b></span></div>
+    <div class="foto-slot" id="slot2" role="button" tabindex="0" onclick="abrirCamera(2)"><span class="cam">📷</span><span>Foto 3<br>(opcional)</span></div>
+    <div class="foto-slot" id="slot3" role="button" tabindex="0" onclick="abrirCamera(3)"><span class="cam">📷</span><span>Foto 4<br>(opcional)</span></div>
+  </div>
+  <input type="file" id="cam" accept="image/*" capture="environment" class="oculta">
+  <div class="erro-msg" id="erroFoto">Faltam as 2 fotos obrigatórias.</div>
+  <div id="mapa"></div>
+  <button class="btn-gps" id="btnGps" onclick="pedirGps()">📍 Usar minha localização</button>
+  <div class="endereco"><span class="pin">📍</span><span id="endTxt">Toque em "Usar minha localização" para marcar o ponto no mapa.</span></div>
+  <div class="erro-msg" id="erroLoc">Falta marcar o local. Toque em "Usar minha localização" ou arraste o pino até o ponto certo.</div>
+  <div>
+    <label for="numRef">Número mais próximo <span style="font-weight:400;color:var(--sutil)">(referência, se houver)</span></label>
+    <input type="text" id="numRef" inputmode="numeric" maxlength="12" placeholder="Ex.: 250" autocomplete="off" style="max-width:150px">
+    <p class="ajuda" style="font-size:14px;margin-top:6px">Veja o número na fachada mais próxima. Isso ajuda a localizar o <span class="tipoTxt2">PV</span> depois.</p>
+  </div>
+  <div>
+    <label for="obs">Observações <span style="font-weight:400;color:var(--sutil)">(opcional)</span></label>
+    <textarea id="obs" rows="2" placeholder="Ex.: tampa no canteiro central, perto do poste"></textarea>
+  </div>
+  <div class="erro-msg" id="erroEnvio"></div>
+  <button class="btn" id="btnEnviar" onclick="enviar()">Enviar registro</button>
+  <button class="btn fantasma" onclick="irPara(2)">‹ Voltar</button>
+</main>
+
+<!-- TELA 4: confirmação -->
+<main id="t4" class="oculta">
+  <div class="recibo">
+    <div class="check">✓</div>
+    <h2>Registro <span class="junto">encaminhado</span></h2>
+    <p class="ajuda" style="margin:0">Obrigado! As fotos e o local foram <span class="junto">enviados.</span></p>
+    <div class="protocolo" id="protoTxt">PV-2026-000000</div>
+    <div class="recibo-det" id="reciboDet"></div>
+    <div class="aviso-demo oculta" id="avisoDemo">⚠️ Modo demonstração: o envio ao banco ainda não está conectado.</div>
+    <button class="btn" onclick="novoRegistro()">Novo registro</button>
+  </div>
+</main>
+
+<footer>Registro de PV e PI<br>versão 0.2 · 10/11/2026</footer>
+<div id="visor" class="oculta" onclick="this.classList.add('oculta')">
+  <img alt="foto ampliada">
+  <button class="fechar">Fechar</button>
+</div>
+</div>
+
+<script>
+"use strict";
+/* ===== CONFIGURAÇÃO DO SUPABASE (colar depois, como no app de vazamentos) ===== */
+const SUPABASE_URL  = 'https://dqacgeqkhsqymhlxszct.supabase.co';
+const SUPABASE_KEY  = 'sb_publishable_DOMUkskgKAgVq1qVo1gBrg_FCSti82Q'; // chave pública: só insere, não lê nem apaga
+const TABELA  = 'registros';
+const BUCKET  = 'fotos';
+const DEMO = SUPABASE_URL.indexOf('__') === 0;      // sem URL colada = modo demonstração
+
+/* ===== Estado ===== */
+const est = {
+  nome:'', empresa:'', tipo:'',
+  fotos:[null,null,null,null],      // dataURL JPEG
+  lat:null, lon:null, gpsOk:false, endereco:'',
+  mapa:null, pino:null, slotAtual:0, enviando:false
+};
+
+function $(id){ return document.getElementById(id); }
+function maiuscula(el){
+  const p = el.selectionStart;
+  el.value = el.value.toUpperCase();
+  try{ el.setSelectionRange(p,p); }catch(e){}
+}
+
+/* ===== Navegação ===== */
+function irPara(n){
+  [1,2,3,4].forEach(i => $('t'+i).classList.toggle('oculta', i!==n));
+  window.scrollTo(0,0);
+  if(n===3){ setTimeout(montaMapa, 60); }
+}
+
+/* ===== Tela 1 ===== */
+function iniciar(){
+  const nome = $('nome').value.trim().toUpperCase();
+  const empresa = $('empresa').value.trim().toUpperCase();
+  const ok = nome.length >= 5 && nome.indexOf(' ') > 0 && empresa.length >= 2;
+  $('erro1').style.display = ok ? 'none' : 'block';
+  if(!ok) return;
+  est.nome = nome; est.empresa = empresa;
+  try{ localStorage.setItem('pvpi_registro', JSON.stringify({nome, empresa})); }catch(e){}
+  irPara(2);
+}
+(function preenche(){
+  try{
+    const d = JSON.parse(localStorage.getItem('pvpi_registro')||'null');
+    if(d){ $('nome').value = d.nome||''; $('empresa').value = d.empresa||''; }
+  }catch(e){}
+})();
+
+/* ===== Tela 2 ===== */
+function escolher(tipo){
+  est.tipo = tipo;
+  $('chipTipo').textContent = tipo === 'PV' ? '🕳️ PV · Poço de visita' : '🔵 PI · Poço de inspeção';
+  $('tipoTxt').textContent = tipo;
+  document.querySelectorAll('.tipoTxt2').forEach(e => e.textContent = tipo);
+  irPara(3);
+  if(!est.gpsOk) pedirGps();
+}
+
+/* ===== Fotos ===== */
+function abrirCamera(i){
+  if(est.fotos[i]){ // já tem foto: amplia
+    const v = $('visor'); v.querySelector('img').src = est.fotos[i]; v.classList.remove('oculta');
+    return;
+  }
+  est.slotAtual = i;
+  $('cam').click();
+}
+$('cam').addEventListener('change', function(){
+  const f = this.files && this.files[0]; this.value = '';
+  if(!f) return;
+  const img = new Image();
+  img.onload = function(){
+    const MAX = 1600;
+    const esc = Math.min(1, MAX/Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width*esc); c.height = Math.round(img.height*esc);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    poeFoto(est.slotAtual, c.toDataURL('image/jpeg', .85));
+    URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(f);
+});
+function poeFoto(i, dataUrl){
+  est.fotos[i] = dataUrl;
+  const s = $('slot'+i);
+  s.innerHTML = '<img src="'+dataUrl+'" alt="Foto '+(i+1)+'">' +
+    '<span class="selo">Foto '+(i+1)+'</span>' +
+    '<button class="rm" onclick="tiraFoto(event,'+i+')" aria-label="Remover foto">✕</button>';
+  s.classList.remove('precisa');
+  $('erroFoto').style.display = 'none';
+}
+function tiraFoto(ev, i){
+  ev.stopPropagation();
+  est.fotos[i] = null;
+  const s = $('slot'+i);
+  const obr = i < 2;
+  s.innerHTML = '<span class="cam">📷</span><span>Foto '+(i+1)+'<br>'+(obr?'<b>obrigatória</b>':'(opcional)')+'</span>';
+  s.classList.toggle('precisa', obr);
+}
+
+/* ===== Mapa e GPS ===== */
+function montaMapa(){
+  if(est.mapa){ est.mapa.invalidateSize(); return; }
+  est.mapa = L.map('mapa', {zoomControl:true}).setView([-23.55,-46.45], 11);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: 'Mapa © Esri | Endereços © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(est.mapa);
+  est.mapa.on('click', function(e){ fixaLocal(e.latlng.lat, e.latlng.lng, false); });
+}
+function pedirGps(){
+  if(!navigator.geolocation){ $('endTxt').textContent = 'Este aparelho não informou a localização. Toque no mapa para marcar o ponto.'; return; }
+  $('endTxt').textContent = 'Localizando você no mapa…';
+  navigator.geolocation.getCurrentPosition(
+    function(p){ fixaLocal(p.coords.latitude, p.coords.longitude, true); },
+    function(){ $('endTxt').textContent = 'Não foi possível usar o GPS. Toque no mapa para marcar o ponto.'; },
+    {enableHighAccuracy:true, timeout:12000, maximumAge:0}
+  );
+}
+function fixaLocal(lat, lon, veioDoGps){
+  est.lat = lat; est.lon = lon; est.gpsOk = true;
+  $('erroLoc').style.display = 'none';
+  montaMapa();
+  if(!est.pino){
+    est.pino = L.marker([lat,lon], {draggable:true}).addTo(est.mapa);
+    est.pino.on('dragend', function(){
+      const p = est.pino.getLatLng();
+      est.lat = p.lat; est.lon = p.lng;
+      buscaEndereco(p.lat, p.lng);
+    });
+  } else est.pino.setLatLng([lat,lon]);
+  est.mapa.setView([lat,lon], veioDoGps ? 18 : est.mapa.getZoom());
+  buscaEndereco(lat, lon);
+}
+let geoSeq = 0;
+function buscaEndereco(lat, lon){
+  const seq = ++geoSeq;
+  $('endTxt').textContent = 'Confirmando o endereço…';
+  fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lon+'&accept-language=pt-BR&zoom=18')
+    .then(r => r.json())
+    .then(function(d){
+      if(seq !== geoSeq) return;
+      const a = d.address || {};
+      const rua = a.road || a.square || '';
+      const bairro = a.suburb || a.neighbourhood || '';
+      const cidade = a.city || a.town || a.village || a.municipality || '';
+      est.endereco = [rua, bairro, cidade].filter(Boolean).join(', ');
+      $('endTxt').innerHTML = est.endereco ? '<b>'+est.endereco+'</b>' : 'Endereço não encontrado. O ponto do mapa será enviado mesmo assim.';
+    })
+    .catch(function(){ if(seq === geoSeq) $('endTxt').textContent = 'Sem internet para buscar o endereço. O ponto do mapa será enviado mesmo assim.'; });
+}
+
+/* ===== Envio ===== */
+function protocolo(){
+  const n = String(Math.floor(100000 + Math.random()*900000));
+  return est.tipo + '-' + new Date().getFullYear() + '-' + n;
+}
+function b64paraBlob(dataUrl){
+  const b = atob(dataUrl.split(',')[1]);
+  const arr = new Uint8Array(b.length);
+  for(let i=0;i<b.length;i++) arr[i] = b.charCodeAt(i);
+  return new Blob([arr], {type:'image/jpeg'});
+}
+function enviar(){
+  if(est.enviando) return;
+  const temFotos = est.fotos[0] && est.fotos[1];
+  $('erroFoto').style.display = temFotos ? 'none' : 'block';
+  $('erroLoc').style.display = est.gpsOk ? 'none' : 'block';
+  if(!temFotos || !est.gpsOk){ window.scrollTo(0,0); return; }
+
+  est.enviando = true;
+  const btn = $('btnEnviar');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  $('erroEnvio').style.display = 'none';
+
+  const proto = protocolo();
+  const pacote = {
+    protocolo: proto,
+    tipo: est.tipo,
+    nome: est.nome,
+    empresa: est.empresa,
+    lat: est.lat, lon: est.lon,
+    endereco: est.endereco || null,
+    num_referencia: $('numRef').value.trim() || null,
+    observacao: $('obs').value.trim() || null,
+    registrado_em: new Date().toISOString()
+  };
+
+  const envio = DEMO ? envioDemo(proto) : envioSupabase(proto, pacote);
+  envio.then(function(){
+    mostraRecibo(proto);
+  }).catch(function(e){
+    $('erroEnvio').textContent = 'Não foi possível enviar. Verifique a internet e toque de novo em "Enviar registro".';
+    $('erroEnvio').style.display = 'block';
+    console.error(e);
+  }).finally(function(){
+    est.enviando = false;
+    btn.disabled = false; btn.textContent = 'Enviar registro';
+  });
+}
+function envioDemo(proto){
+  console.log('[DEMO] registro', proto, est);
+  return new Promise(function(res){ setTimeout(res, 900); });
+}
+function envioSupabase(proto, pacote){
+  // 1) sobe as fotos no bucket; 2) grava a linha na tabela com os caminhos
+  const caminhos = [];
+  let fila = Promise.resolve();
+  est.fotos.forEach(function(f, i){
+    if(!f) return;
+    const caminho = proto + '/foto' + (i+1) + '.jpg';
+    caminhos.push(caminho);
+    fila = fila.then(function(){
+      return fetch(SUPABASE_URL + '/storage/v1/object/' + BUCKET + '/' + caminho, {
+        method:'POST',
+        headers:{ 'Authorization':'Bearer '+SUPABASE_KEY, 'apikey':SUPABASE_KEY, 'Content-Type':'image/jpeg' },
+        body: b64paraBlob(f)
+      }).then(function(r){ if(!r.ok) throw new Error('foto '+(i+1)+': HTTP '+r.status); });
+    });
+  });
+  return fila.then(function(){
+    pacote.fotos = caminhos;
+    return fetch(SUPABASE_URL + '/rest/v1/' + TABELA, {
+      method:'POST',
+      headers:{ 'Authorization':'Bearer '+SUPABASE_KEY, 'apikey':SUPABASE_KEY, 'Content-Type':'application/json', 'Prefer':'return=minimal' },
+      body: JSON.stringify(pacote)
+    }).then(function(r){ if(!r.ok) throw new Error('tabela: HTTP '+r.status); });
+  });
+}
+function escapaHtml(t){
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function mostraRecibo(proto){
+  $('protoTxt').textContent = proto;
+  const qtdFotos = est.fotos.filter(Boolean).length;
+  const numRef = $('numRef').value.trim();
+  const obs = $('obs').value.trim();
+  $('reciboDet').innerHTML =
+    '<div><span>Tipo</span><b>'+(est.tipo==='PV'?'PV · Poço de visita':'PI · Poço de inspeção')+'</b></div>' +
+    '<div><span>Registrado por</span><b>'+escapaHtml(est.nome)+'</b></div>' +
+    '<div><span>Empresa</span><b>'+escapaHtml(est.empresa)+'</b></div>' +
+    (est.endereco ? '<div><span>Local</span><b>'+escapaHtml(est.endereco)+'</b></div>' : '') +
+    (numRef ? '<div><span>Nº próximo</span><b>'+escapaHtml(numRef)+'</b></div>' : '') +
+    (obs ? '<div><span>Observação</span><b>'+escapaHtml(obs)+'</b></div>' : '') +
+    '<div><span>Fotos</span><b>'+qtdFotos+'</b></div>';
+  $('avisoDemo').classList.toggle('oculta', !DEMO);
+  irPara(4);
+}
+
+/* ===== Novo registro ===== */
+function novoRegistro(){
+  est.tipo = '';
+  est.fotos = [null,null,null,null];
+  [0,1,2,3].forEach(function(i){
+    const s = $('slot'+i);
+    const obr = i < 2;
+    s.innerHTML = '<span class="cam">📷</span><span>Foto '+(i+1)+'<br>'+(obr?'<b>obrigatória</b>':'(opcional)')+'</span>';
+    s.classList.toggle('precisa', obr);
+  });
+  $('numRef').value = ''; $('obs').value = '';
+  est.lat = null; est.lon = null; est.gpsOk = false; est.endereco = '';
+  if(est.pino){ est.mapa.removeLayer(est.pino); est.pino = null; }
+  $('endTxt').textContent = 'Toque em "Usar minha localização" para marcar o ponto no mapa.';
+  ['erroFoto','erroLoc','erroEnvio'].forEach(function(id){ $(id).style.display='none'; });
+  irPara(2); // nome e empresa ficam guardados
+}
+</script>
+</body>
+</html>
