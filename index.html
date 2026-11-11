@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0093DD">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icone-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="PV e PI">
 <title>Registro de PV e PI</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -164,7 +170,7 @@
   </div>
 </main>
 
-<footer>Registro de PV e PI<br>versão 0.2 · 10/11/2026</footer>
+<footer>Registro de PV e PI<br>versão 1.0 · 10/11/2026</footer>
 <div id="visor" class="oculta" onclick="this.classList.add('oculta')">
   <img alt="foto ampliada">
   <button class="fechar">Fechar</button>
@@ -223,7 +229,7 @@ function iniciar(){
 /* ===== Tela 2 ===== */
 function escolher(tipo){
   est.tipo = tipo;
-  $('chipTipo').textContent = tipo === 'PV' ? '🕳️ PV · Poço de visita' : '🔵 PI · Poço de inspeção';
+  $('chipTipo').textContent = tipo === 'PV' ? 'PV · Poço de visita' : 'PI · Poço de inspeção';
   $('tipoTxt').textContent = tipo;
   document.querySelectorAll('.tipoTxt2').forEach(e => e.textContent = tipo);
   irPara(3);
@@ -274,6 +280,7 @@ function tiraFoto(ev, i){
 
 /* ===== Mapa e GPS ===== */
 function montaMapa(){
+  if(typeof L === 'undefined') return; // mapa não carregou (sem internet): o GPS continua valendo
   if(est.mapa){ est.mapa.invalidateSize(); return; }
   est.mapa = L.map('mapa', {zoomControl:true}).setView([-23.55,-46.45], 11);
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
@@ -293,23 +300,27 @@ function pedirGps(){
 function fixaLocal(lat, lon, veioDoGps){
   est.lat = lat; est.lon = lon; est.gpsOk = true;
   $('erroLoc').style.display = 'none';
-  montaMapa();
-  if(!est.pino){
-    est.pino = L.marker([lat,lon], {draggable:true}).addTo(est.mapa);
-    est.pino.on('dragend', function(){
-      const p = est.pino.getLatLng();
-      est.lat = p.lat; est.lon = p.lng;
-      buscaEndereco(p.lat, p.lng);
-    });
-  } else est.pino.setLatLng([lat,lon]);
-  est.mapa.setView([lat,lon], veioDoGps ? 18 : est.mapa.getZoom());
+  try{
+    montaMapa();
+    if(est.mapa){
+      if(!est.pino){
+        est.pino = L.marker([lat,lon], {draggable:true}).addTo(est.mapa);
+        est.pino.on('dragend', function(){
+          const p = est.pino.getLatLng();
+          est.lat = p.lat; est.lon = p.lng;
+          buscaEndereco(p.lat, p.lng);
+        });
+      } else est.pino.setLatLng([lat,lon]);
+      est.mapa.setView([lat,lon], veioDoGps ? 18 : est.mapa.getZoom());
+    }
+  }catch(e){ console.error(e); }
   buscaEndereco(lat, lon);
 }
 let geoSeq = 0;
 function buscaEndereco(lat, lon){
   const seq = ++geoSeq;
   $('endTxt').textContent = 'Confirmando o endereço…';
-  fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lon+'&accept-language=pt-BR&zoom=18')
+  comTimeout('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lon+'&accept-language=pt-BR&zoom=18', {}, 10000)
     .then(r => r.json())
     .then(function(d){
       if(seq !== geoSeq) return;
@@ -318,7 +329,7 @@ function buscaEndereco(lat, lon){
       const bairro = a.suburb || a.neighbourhood || '';
       const cidade = a.city || a.town || a.village || a.municipality || '';
       est.endereco = [rua, bairro, cidade].filter(Boolean).join(', ');
-      $('endTxt').innerHTML = est.endereco ? '<b>'+est.endereco+'</b>' : 'Endereço não encontrado. O ponto do mapa será enviado mesmo assim.';
+      $('endTxt').innerHTML = est.endereco ? '<b>'+escapaHtml(est.endereco)+'</b>' : 'Endereço não encontrado. O ponto do mapa será enviado mesmo assim.';
     })
     .catch(function(){ if(seq === geoSeq) $('endTxt').textContent = 'Sem internet para buscar o endereço. O ponto do mapa será enviado mesmo assim.'; });
 }
@@ -327,6 +338,12 @@ function buscaEndereco(lat, lon){
 function protocolo(){
   const n = String(Math.floor(100000 + Math.random()*900000));
   return est.tipo + '-' + new Date().getFullYear() + '-' + n;
+}
+function comTimeout(url, opts, ms){
+  const ctl = new AbortController();
+  const t = setTimeout(function(){ ctl.abort(); }, ms || 30000);
+  opts = opts || {}; opts.signal = ctl.signal;
+  return fetch(url, opts).finally(function(){ clearTimeout(t); });
 }
 function b64paraBlob(dataUrl){
   const b = atob(dataUrl.split(',')[1]);
@@ -346,7 +363,9 @@ function enviar(){
   btn.disabled = true; btn.textContent = 'Enviando…';
   $('erroEnvio').style.display = 'none';
 
-  const proto = protocolo();
+  // o protocolo não muda entre tentativas do MESMO registro (reenvio não duplica foto)
+  if(!est.protoAtual) est.protoAtual = protocolo();
+  const proto = est.protoAtual;
   const pacote = {
     protocolo: proto,
     tipo: est.tipo,
@@ -384,20 +403,23 @@ function envioSupabase(proto, pacote){
     const caminho = proto + '/foto' + (i+1) + '.jpg';
     caminhos.push(caminho);
     fila = fila.then(function(){
-      return fetch(SUPABASE_URL + '/storage/v1/object/' + BUCKET + '/' + caminho, {
+      return comTimeout(SUPABASE_URL + '/storage/v1/object/' + BUCKET + '/' + caminho, {
         method:'POST',
         headers:{ 'Authorization':'Bearer '+SUPABASE_KEY, 'apikey':SUPABASE_KEY, 'Content-Type':'image/jpeg' },
         body: b64paraBlob(f)
-      }).then(function(r){ if(!r.ok) throw new Error('foto '+(i+1)+': HTTP '+r.status); });
+      }, 30000).then(function(r){
+        // 409 = esta foto já subiu numa tentativa anterior: está lá, pode seguir
+        if(!r.ok && r.status !== 409) throw new Error('foto '+(i+1)+': HTTP '+r.status);
+      });
     });
   });
   return fila.then(function(){
     pacote.fotos = caminhos;
-    return fetch(SUPABASE_URL + '/rest/v1/' + TABELA, {
+    return comTimeout(SUPABASE_URL + '/rest/v1/' + TABELA, {
       method:'POST',
       headers:{ 'Authorization':'Bearer '+SUPABASE_KEY, 'apikey':SUPABASE_KEY, 'Content-Type':'application/json', 'Prefer':'return=minimal' },
       body: JSON.stringify(pacote)
-    }).then(function(r){ if(!r.ok) throw new Error('tabela: HTTP '+r.status); });
+    }, 30000).then(function(r){ if(!r.ok) throw new Error('tabela: HTTP '+r.status); });
   });
 }
 function escapaHtml(t){
@@ -423,6 +445,7 @@ function mostraRecibo(proto){
 /* ===== Novo registro ===== */
 function novoRegistro(){
   est.tipo = '';
+  est.protoAtual = null;
   est.fotos = [null,null,null,null];
   [0,1,2,3].forEach(function(i){
     const s = $('slot'+i);
