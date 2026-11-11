@@ -7,6 +7,8 @@
 <meta name="robots" content="noindex">
 <title>Painel - Monitoramento Fator K - ETE Suzano</title>
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <style>
@@ -62,6 +64,15 @@
   .filtros input[type=search]{min-width:230px}
   .filtros .busca{flex:1}
   .aviso-rede{background:#FFF4D6;border:1px solid #E5C877;color:#7a5a00;border-radius:12px;padding:10px 14px;font-size:14px;display:none}
+  .abas{display:flex;gap:0;border:1.5px solid var(--fio);border-radius:11px;overflow:hidden;align-self:flex-start;background:var(--branco)}
+  .abas button{border:0;background:var(--branco);color:var(--muted);font:600 14px var(--texto);padding:10px 20px;cursor:pointer}
+  .abas button.ativa{background:var(--acento);color:#fff}
+  #mapaP{height:min(62vh,560px);border-radius:14px;border:1px solid var(--fio);overflow:hidden}
+  .legenda{display:flex;gap:16px;align-items:center;font-size:13.5px;color:var(--muted);padding:2px 4px}
+  .legenda .bola{display:inline-block;width:13px;height:13px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(11,31,51,.25);vertical-align:-2px;margin-right:6px}
+  .pop-ficha{font:14px/1.5 var(--texto);color:var(--ink)}
+  .pop-ficha b{font:700 15px var(--display)}
+  .pop-ficha .btn{padding:8px 12px;font-size:13.5px;margin-top:8px}
   /* lista */
   .tabela{background:var(--branco);border:1px solid var(--fio);border-radius:14px;overflow:hidden}
   .cabecalho,.linha{display:grid;grid-template-columns:148px 50px 116px minmax(130px,1fr) minmax(110px,.8fr) minmax(170px,1.4fr) 58px 18px;gap:12px;align-items:center;padding:11px 16px}
@@ -201,18 +212,32 @@
     </div>
   </div>
   <div class="aviso-rede" id="avisoRede">⚠️ Sem conexão com o banco agora. Tentando de novo em instantes…</div>
-  <div class="tabela">
-    <div class="cabecalho"><span>Protocolo</span><span>Tipo</span><span>Data e hora</span><span>Quem registrou</span><span>Cliente</span><span>Local</span><span style="text-align:center">Fotos</span><span></span></div>
-    <div id="lista"></div>
+  <div class="abas" role="tablist">
+    <button type="button" id="abaLista" class="ativa" onclick="mostraVista('lista')">Lista</button>
+    <button type="button" id="abaMapa" onclick="mostraVista('mapa')">Mapa</button>
   </div>
-  <div class="vazio oculta" id="vazio">Nenhum registro encontrado com esse filtro.</div>
+  <div id="vistaLista">
+    <div class="tabela">
+      <div class="cabecalho"><span>Protocolo</span><span>Tipo</span><span>Data e hora</span><span>Quem registrou</span><span>Cliente</span><span>Local</span><span style="text-align:center">Fotos</span><span></span></div>
+      <div id="lista"></div>
+    </div>
+    <div class="vazio oculta" id="vazio">Nenhum registro encontrado com esse filtro.</div>
+  </div>
+  <div id="vistaMapa" class="oculta">
+    <div id="mapaP"></div>
+    <div class="legenda">
+      <span><span class="bola" style="background:#3D4954"></span>PV · Poço de visita</span>
+      <span><span class="bola" style="background:#0093DD"></span>PI · Poço de inspeção</span>
+      <span>Toque no ponto para ver a ficha</span>
+    </div>
+  </div>
 </main>
 
 <div id="fundo" class="oculta" onclick="if(event.target===this)fechaDetalhe()">
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.2 · 10/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.3 · 10/11/2026</footer>
 
 <script>
 "use strict";
@@ -220,7 +245,8 @@ const URL_BASE = 'https://dqacgeqkhsqymhlxszct.supabase.co';
 const CHAVE = 'sb_publishable_DOMUkskgKAgVq1qVo1gBrg_FCSti82Q'; // chave pública (a mesma do app)
 const INTERVALO_MS = 30000;
 
-const est = { token:null, renovador:null, expira:0, regs:[], vistos:null, fotoUrl:{}, timer:null, buscando:false };
+const est = { token:null, renovador:null, expira:0, regs:[], vistos:null, fotoUrl:{}, timer:null, buscando:false,
+              mapa:null, camadaPontos:null, vista:'lista', mapaEnquadrado:false };
 
 function $(id){ return document.getElementById(id); }
 
@@ -345,6 +371,7 @@ function render(){
   const filtrando = $('fTipo').value || $('fDe').value || $('fAte').value || $('fBusca').value.trim();
   $('kFiltro').textContent = lista.length;
   $('cardFiltro').classList.toggle('oculta', !filtrando);
+  if(est.vista === 'mapa') renderMapa();
   const g = $('lista'); g.innerHTML = '';
   $('vazio').classList.toggle('oculta', lista.length > 0);
   lista.forEach(function(r){
@@ -403,6 +430,52 @@ function abreDetalhe(r){
 }
 function fechaDetalhe(){ $('fundo').classList.add('oculta'); }
 document.addEventListener('keydown', function(e){ if(e.key==='Escape') fechaDetalhe(); });
+/* ===== Mapa dos pontos ===== */
+function mostraVista(v){
+  est.vista = v;
+  $('abaLista').classList.toggle('ativa', v==='lista');
+  $('abaMapa').classList.toggle('ativa', v==='mapa');
+  $('vistaLista').classList.toggle('oculta', v!=='lista');
+  $('vistaMapa').classList.toggle('oculta', v!=='mapa');
+  if(v==='mapa'){
+    montaMapaPainel();
+    renderMapa();
+    setTimeout(function(){ if(est.mapa){ est.mapa.invalidateSize(); enquadra(); } }, 80);
+  }
+}
+function montaMapaPainel(){
+  if(est.mapa || typeof L === 'undefined') return;
+  est.mapa = L.map('mapaP', {zoomControl:true}).setView([-23.54,-46.4], 11);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: 'Mapa © Esri | Endereços © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(est.mapa);
+  est.camadaPontos = L.layerGroup().addTo(est.mapa);
+}
+function renderMapa(){
+  if(!est.mapa) return;
+  est.camadaPontos.clearLayers();
+  filtrados().forEach(function(r){
+    if(r.lat == null || r.lon == null) return;
+    const m = L.circleMarker([r.lat, r.lon], {
+      radius: 9, color: '#fff', weight: 2.5, fillColor: r.tipo==='PV' ? '#3D4954' : '#0093DD', fillOpacity: 1
+    });
+    const box = document.createElement('div'); box.className = 'pop-ficha';
+    box.appendChild(el('b', null, r.protocolo));
+    box.appendChild(el('div', null, (r.tipo==='PV'?'PV · Poço de visita':'PI · Poço de inspeção') + ' · ' + fmtData(r.registrado_em)));
+    box.appendChild(el('div', null, r.nome + ' · ' + r.empresa));
+    box.appendChild(el('div', null, localDe(r)));
+    const bt = el('button', 'btn', 'Ver ficha e fotos'); bt.type = 'button';
+    bt.onclick = function(){ est.mapa.closePopup(); abreDetalhe(r); };
+    box.appendChild(bt);
+    m.bindPopup(box, {maxWidth: 290});
+    m.addTo(est.camadaPontos);
+  });
+}
+function enquadra(){
+  const pts = filtrados().filter(function(r){ return r.lat != null && r.lon != null; })
+    .map(function(r){ return [r.lat, r.lon]; });
+  if(pts.length) est.mapa.fitBounds(pts, {padding:[45,45], maxZoom: 16});
+}
 function urlFoto(caminho){
   if(est.fotoUrl[caminho]) return est.fotoUrl[caminho];
   est.fotoUrl[caminho] = chama('/storage/v1/object/sign/fotos/'+caminho, {
