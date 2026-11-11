@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0093DD">
 <meta name="robots" content="noindex">
-<title>Painel — Registro de PV e PI</title>
+<title>Painel — Monitoramento Fator K</title>
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -73,8 +73,8 @@
 <body>
 <header><div class="cab-in">
   <div>
-    <h1>Painel — Registro de PV e PI</h1>
-    <div class="sub">Acompanhamento ao vivo · atualiza <span id="autoTxt">a cada 30 s</span></div>
+    <h1>Painel — Monitoramento Fator K</h1>
+    <div class="sub">ETE Suzano · acompanhamento ao vivo · atualiza <span id="autoTxt">a cada 30 s</span></div>
   </div>
   <div class="cab-dir oculta" id="cabDir">
     <span class="hora" id="horaTxt"></span>
@@ -109,14 +109,14 @@
       <option value="PV">Só PV</option>
       <option value="PI">Só PI</option>
     </select>
-    <input type="search" id="fBusca" placeholder="Buscar por nome, empresa, local ou protocolo…" oninput="render()">
+    <input type="search" id="fBusca" placeholder="Buscar por nome, cliente, local ou protocolo…" oninput="render()">
   </div>
   <div class="aviso-rede" id="avisoRede">⚠️ Sem conexão com o banco agora. Tentando de novo em instantes…</div>
   <div class="grade" id="grade"></div>
   <div class="vazio oculta" id="vazio">Nenhum registro encontrado com esse filtro.</div>
 </main>
 
-<footer>Registro de PV e PI · painel da gestão · versão 1.0 · 10/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 1.1 · 10/11/2026</footer>
 
 <script>
 "use strict";
