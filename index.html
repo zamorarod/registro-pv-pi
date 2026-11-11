@@ -130,7 +130,7 @@
 <main id="t3" class="oculta">
   <div class="chip-tipo" id="chipTipo">PV</div>
   <h2>Fotos e local</h2>
-  <p class="ajuda">Tire 2 fotos do local (obrigatórias). Se quiser, acrescente mais 2. Confira se o pino do mapa está bem em cima do <span id="tipoTxt">PV</span>.</p>
+  <p class="ajuda">Tire 2 fotos do local (obrigatórias) — elas saem com data, hora e posição gravadas. Se quiser, acrescente mais 2. Confira se o pino do mapa está bem em cima do <span id="tipoTxt">PV</span>.</p>
   <div class="fotos">
     <div class="foto-slot precisa" id="slot0" role="button" tabindex="0" onclick="abrirCamera(0)"><span class="cam">📷</span><span>Foto 1<br><b>obrigatória</b></span></div>
     <div class="foto-slot precisa" id="slot1" role="button" tabindex="0" onclick="abrirCamera(1)"><span class="cam">📷</span><span>Foto 2<br><b>obrigatória</b></span></div>
@@ -170,7 +170,7 @@
   </div>
 </main>
 
-<footer>Registro de PV e PI<br>versão 1.0 · 10/11/2026</footer>
+<footer>Registro de PV e PI<br>versão 1.1 · 10/11/2026</footer>
 <div id="visor" class="oculta" onclick="this.classList.add('oculta')">
   <img alt="foto ampliada">
   <button class="fechar">Fechar</button>
@@ -254,12 +254,34 @@ $('cam').addEventListener('change', function(){
     const esc = Math.min(1, MAX/Math.max(img.width, img.height));
     const c = document.createElement('canvas');
     c.width = Math.round(img.width*esc); c.height = Math.round(img.height*esc);
-    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    carimba(ctx, c.width, c.height);
     poeFoto(est.slotAtual, c.toDataURL('image/jpeg', .85));
     URL.revokeObjectURL(img.src);
   };
   img.src = URL.createObjectURL(f);
 });
+function carimba(ctx, w, h){
+  const ag = new Date();
+  function d2(n){ return String(n).padStart(2, '0'); }
+  const dt = d2(ag.getDate())+'/'+d2(ag.getMonth()+1)+'/'+ag.getFullYear()+' '+d2(ag.getHours())+':'+d2(ag.getMinutes());
+  const linhas = [dt + (est.gpsOk ? ' · GPS '+est.lat.toFixed(6)+', '+est.lon.toFixed(6) : '')];
+  if(est.endereco) linhas.push(est.endereco);
+  const fs = Math.max(15, Math.round(w*0.026));
+  const lh = fs + 7;
+  const alt = linhas.length*lh + 16;
+  ctx.fillStyle = 'rgba(11,31,51,.78)';
+  ctx.fillRect(0, h-alt, w, alt);
+  ctx.fillStyle = '#fff';
+  ctx.font = '600 '+fs+'px system-ui, sans-serif';
+  ctx.textBaseline = 'top';
+  linhas.forEach(function(t, i){
+    let s = t; // só corta se não couber inteira
+    while(s.length > 3 && ctx.measureText(s).width > w-24){ s = s.slice(0, -2).trimEnd()+'…'; }
+    ctx.fillText(s, 12, h-alt+9+i*lh);
+  });
+}
 function poeFoto(i, dataUrl){
   est.fotos[i] = dataUrl;
   const s = $('slot'+i);
