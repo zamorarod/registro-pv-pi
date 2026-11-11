@@ -41,10 +41,20 @@
   .lembrar{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted)}
   .erro-msg{color:var(--erro);font-size:14px;font-weight:600;display:none}
   /* resumo e filtros */
-  .faixa{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  .resumo{display:flex;gap:6px 20px;flex-wrap:wrap;align-items:baseline;background:var(--branco);border:1px solid var(--fio);border-radius:13px;padding:11px 16px;flex:1;min-width:260px}
-  .resumo span{color:var(--sutil);font-size:13.5px;white-space:nowrap}
-  .resumo b{color:var(--ink);font-size:18px;font-variant-numeric:tabular-nums}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .kpi{background:var(--branco);border:1px solid var(--fio);border-radius:14px;padding:13px 14px;display:flex;gap:12px;align-items:center;min-width:0;box-shadow:0 1px 2px rgba(11,31,51,.04)}
+  .kpi .ic{width:44px;height:44px;border-radius:12px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px rgba(11,31,51,.06)}
+  .kpi .ic svg{width:25px;height:25px}
+  .kpi .tx{min-width:0}
+  .kpi b{display:block;font:800 25px/1.05 var(--display);font-variant-numeric:tabular-nums;color:var(--ink)}
+  .kpi .rot{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--sutil);white-space:nowrap}
+  .kpi.total .ic{background:linear-gradient(150deg,#EAF7FF,#C7E8FA)}
+  .kpi.pv .ic{background:linear-gradient(150deg,#EEF1F4,#D8DEE4)}
+  .kpi.pi .ic{background:linear-gradient(150deg,#DDF0FB,#BFE3F7)}
+  .kpi.hoje .ic{background:linear-gradient(150deg,#E8F5E9,#CBE7D2)}
+  .kpi.fts .ic{background:linear-gradient(150deg,#FDF4E3,#F7E3C2)}
+  .kpi.filtro .ic{background:linear-gradient(150deg,#F1F3F5,#E2E6EA)}
+  .kpi.filtro{border-color:var(--acento)}
   .filtros{display:flex;gap:9px;flex-wrap:wrap;align-items:end}
   .filtros .campo{display:flex;flex-direction:column;gap:4px}
   .filtros .campo label{margin:0;font-size:12.5px;color:var(--sutil)}
@@ -142,8 +152,31 @@
 </main>
 
 <main id="telaPainel" class="oculta">
-  <div class="faixa">
-    <div class="resumo" id="resumo"></div>
+  <div class="cards">
+    <div class="kpi total">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="3.5" width="14" height="17" rx="2.5" stroke="#0072AD" stroke-width="1.8"/><path d="M9 8.5h6M9 12h6M9 15.5h3.5" stroke="#0072AD" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+      <span class="tx"><b id="kTot">0</b><span class="rot">Registros</span></span>
+    </div>
+    <div class="kpi pv">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="14.5" rx="8" ry="3" fill="#6B7680" stroke="#3A444E" stroke-width="1"/><ellipse cx="12" cy="14.5" rx="4.8" ry="1.8" fill="none" stroke="#3A444E" stroke-width=".9"/><path d="M9.4 14.5h5.2M12 13.3v2.4" stroke="#3A444E" stroke-width=".9"/></svg></span>
+      <span class="tx"><b id="kPv">0</b><span class="rot">PV</span></span>
+    </div>
+    <div class="kpi pi">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="16" rx="6.4" ry="2.4" fill="#2E9BD6" stroke="#005B8E" stroke-width="1"/><ellipse cx="12" cy="16" rx="3.3" ry="1.25" fill="#EAF7FF" stroke="#005B8E" stroke-width=".9"/><path d="M12 4.5v6.2M9.8 8.6 12 10.8l2.2-2.2" stroke="#005B8E" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span class="tx"><b id="kPi">0</b><span class="rot">PI</span></span>
+    </div>
+    <div class="kpi hoje">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12.5" r="8" stroke="#1E7B34" stroke-width="1.8"/><path d="M12 8v4.8l3.2 1.8" stroke="#1E7B34" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span class="tx"><b id="kHoje">0</b><span class="rot">Hoje</span></span>
+    </div>
+    <div class="kpi fts">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="7" width="17" height="12" rx="2.5" stroke="#C9720E" stroke-width="1.8"/><path d="M8.5 7l1.4-2h4.2l1.4 2" stroke="#C9720E" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="#C9720E" stroke-width="1.8"/></svg></span>
+      <span class="tx"><b id="kFotos">0</b><span class="rot">Fotos</span></span>
+    </div>
+    <div class="kpi filtro oculta" id="cardFiltro">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5h16l-6.2 7.2v5.1l-3.6 1.7v-6.8L4 5.5Z" stroke="#5F6B75" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+      <span class="tx"><b id="kFiltro">0</b><span class="rot">No filtro</span></span>
+    </div>
   </div>
   <div class="filtros">
     <div class="campo">
@@ -179,7 +212,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.1 · 10/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.2 · 10/11/2026</footer>
 
 <script>
 "use strict";
@@ -304,10 +337,14 @@ function render(){
   const pv = est.regs.filter(r=>r.tipo==='PV').length;
   const hoje = est.regs.filter(r=>dataLocal(r.registrado_em)===dataLocal(new Date().toISOString())).length;
   const fotos = est.regs.reduce(function(s,r){ return s + ((r.fotos&&r.fotos.length)||0); }, 0);
-  const res = $('resumo'); res.innerHTML = '';
-  [['registros', est.regs.length], ['PV', pv], ['PI', est.regs.length-pv], ['hoje', hoje], ['fotos', fotos], ['no filtro', lista.length]].forEach(function(par){
-    const s = el('span'); s.appendChild(el('b', null, String(par[1]))); s.appendChild(document.createTextNode(' '+par[0])); res.appendChild(s);
-  });
+  $('kTot').textContent = est.regs.length;
+  $('kPv').textContent = pv;
+  $('kPi').textContent = est.regs.length - pv;
+  $('kHoje').textContent = hoje;
+  $('kFotos').textContent = fotos;
+  const filtrando = $('fTipo').value || $('fDe').value || $('fAte').value || $('fBusca').value.trim();
+  $('kFiltro').textContent = lista.length;
+  $('cardFiltro').classList.toggle('oculta', !filtrando);
   const g = $('lista'); g.innerHTML = '';
   $('vazio').classList.toggle('oculta', lista.length > 0);
   lista.forEach(function(r){
