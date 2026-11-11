@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0093DD">
+<meta name="robots" content="noindex">
+<title>Painel — Registro de PV e PI</title>
+<link rel="icon" type="image/png" sizes="192x192" href="icone-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --ink:#0B1F33; --papel:#EEF2F4; --branco:#fff; --fio:#DCE1E4; --muted:#3D4954; --sutil:#5F6B75;
+    --sabesp:#0093DD; --acento:#0072AD; --agua-bg:#E5F4FC; --ok:#1E7B34; --erro:#C0392B;
+    --display:"Archivo",system-ui,sans-serif; --texto:"IBM Plex Sans",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{font:15.5px/1.55 var(--texto);color:var(--ink);background:var(--papel)}
+  header{background:var(--branco);border-bottom:4px solid var(--sabesp);position:sticky;top:0;z-index:5}
+  .cab-in{max-width:1280px;margin:0 auto;padding:14px 22px 12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  h1{font:800 22px/1.1 var(--display);margin:0;letter-spacing:-.01em}
+  .cab-in .sub{font-size:13.5px;color:var(--sutil)}
+  .cab-dir{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .hora{font-size:13px;color:var(--sutil);font-variant-numeric:tabular-nums}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;border:0;border-radius:10px;background:var(--acento);color:#fff;font:600 14.5px var(--texto);cursor:pointer}
+  .btn:active{filter:brightness(.92)}
+  .btn.claro{background:var(--branco);color:var(--acento);border:1.5px solid var(--acento)}
+  .btn[disabled]{opacity:.6;cursor:wait}
+  main{max-width:1280px;margin:0 auto;padding:18px 22px 40px;display:flex;flex-direction:column;gap:16px}
+  /* login */
+  .login{max-width:410px;margin:7vh auto 0;background:var(--branco);border:1px solid var(--fio);border-radius:18px;padding:26px;display:flex;flex-direction:column;gap:14px}
+  .login h2{font:700 22px var(--display);margin:0}
+  .login .ajuda{color:var(--sutil);font-size:14px;margin:0}
+  label{font-weight:600;font-size:14.5px;display:block;margin-bottom:5px}
+  input[type=email],input[type=password],input[type=search]{width:100%;padding:13px;font:inherit;border:1.5px solid var(--fio);border-radius:10px;background:var(--branco);color:var(--ink)}
+  input:focus{outline:2px solid var(--acento);border-color:var(--acento)}
+  .lembrar{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted)}
+  .erro-msg{color:var(--erro);font-size:14px;font-weight:600;display:none}
+  /* painel */
+  .resumo{display:flex;gap:8px 22px;flex-wrap:wrap;align-items:baseline;background:var(--branco);border:1px solid var(--fio);border-radius:14px;padding:13px 18px}
+  .resumo span{color:var(--sutil);font-size:14px}
+  .resumo b{color:var(--ink);font-size:19px;font-variant-numeric:tabular-nums}
+  .filtros{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .filtros select{padding:11px 12px;font:inherit;border:1.5px solid var(--fio);border-radius:10px;background:var(--branco)}
+  .filtros input{flex:1;min-width:200px}
+  .aviso-rede{background:#FFF4D6;border:1px solid #E5C877;color:#7a5a00;border-radius:12px;padding:10px 14px;font-size:14px;display:none}
+  .grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(355px,1fr));gap:14px}
+  .cartao{background:var(--branco);border:1px solid var(--fio);border-radius:16px;padding:15px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+  .cartao.novo{border-color:var(--sabesp);box-shadow:0 0 0 2px var(--agua-bg)}
+  .cab-reg{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .proto{font:700 15.5px/1 var(--display);letter-spacing:.03em;font-variant-numeric:tabular-nums}
+  .chip{font-weight:700;font-size:12px;border-radius:7px;padding:3px 8px}
+  .chip.PV{background:#E8ECF0;color:#3D4954}
+  .chip.PI{background:#DDF0FB;color:#005B8E}
+  .selo-novo{background:var(--sabesp);color:#fff;font-size:11.5px;font-weight:700;border-radius:7px;padding:3px 8px;letter-spacing:.03em}
+  .quando{margin-left:auto;color:var(--sutil);font-size:13px;font-variant-numeric:tabular-nums}
+  .campos{display:grid;grid-template-columns:105px 1fr;gap:3px 12px;font-size:14px;margin:0}
+  .campos dt{color:var(--sutil)}
+  .campos dd{margin:0;min-width:0;overflow-wrap:anywhere}
+  .campos a{color:var(--acento);font-weight:600;text-decoration:none}
+  .campos a:hover{text-decoration:underline}
+  .fotos{display:flex;flex-wrap:wrap;gap:8px}
+  .fotos a{display:block;width:112px;border-radius:9px;overflow:hidden;border:1px solid var(--fio);background:#0B1F33}
+  .fotos img{display:block;width:100%;height:84px;object-fit:cover}
+  .fotos .pend{width:112px;height:84px;display:flex;align-items:center;justify-content:center;color:var(--sutil);font-size:12px;border:1px dashed var(--fio);border-radius:9px}
+  .vazio{text-align:center;color:var(--sutil);padding:40px 0}
+  footer{text-align:center;font-size:12.5px;color:var(--sutil);padding:0 20px 20px}
+  .oculta{display:none!important}
+</style>
+</head>
+<body>
+<header><div class="cab-in">
+  <div>
+    <h1>Painel — Registro de PV e PI</h1>
+    <div class="sub">Acompanhamento ao vivo · atualiza <span id="autoTxt">a cada 30 s</span></div>
+  </div>
+  <div class="cab-dir oculta" id="cabDir">
+    <span class="hora" id="horaTxt"></span>
+    <button class="btn claro" id="btnAtualiza" onclick="carrega(true)">Atualizar agora</button>
+    <button class="btn claro" onclick="sair()">Sair</button>
+  </div>
+</div></header>
+
+<main id="telaLogin">
+  <div class="login">
+    <h2>Entrar no painel</h2>
+    <p class="ajuda">Acesso restrito à gestão. Os registros de campo continuam entrando pelo app normalmente.</p>
+    <div>
+      <label for="email">E-mail</label>
+      <input type="email" id="email" autocomplete="username" placeholder="seu e-mail cadastrado">
+    </div>
+    <div>
+      <label for="senha">Senha</label>
+      <input type="password" id="senha" autocomplete="current-password">
+    </div>
+    <label class="lembrar"><input type="checkbox" id="lembrar" checked> Continuar conectado neste computador</label>
+    <div class="erro-msg" id="erroLogin">E-mail ou senha incorretos. Confira e tente de novo.</div>
+    <button class="btn" id="btnEntrar" onclick="entrar()">Entrar</button>
+  </div>
+</main>
+
+<main id="telaPainel" class="oculta">
+  <div class="resumo" id="resumo"></div>
+  <div class="filtros">
+    <select id="fTipo" onchange="render()">
+      <option value="">Todos os tipos</option>
+      <option value="PV">Só PV</option>
+      <option value="PI">Só PI</option>
+    </select>
+    <input type="search" id="fBusca" placeholder="Buscar por nome, empresa, local ou protocolo…" oninput="render()">
+  </div>
+  <div class="aviso-rede" id="avisoRede">⚠️ Sem conexão com o banco agora. Tentando de novo em instantes…</div>
+  <div class="grade" id="grade"></div>
+  <div class="vazio oculta" id="vazio">Nenhum registro encontrado com esse filtro.</div>
+</main>
+
+<footer>Registro de PV e PI · painel da gestão · versão 1.0 · 10/11/2026</footer>
+
+<script>
+"use strict";
+const URL_BASE = 'https://dqacgeqkhsqymhlxszct.supabase.co';
+const CHAVE = 'sb_publishable_DOMUkskgKAgVq1qVo1gBrg_FCSti82Q'; // chave pública (a mesma do app)
+const INTERVALO_MS = 30000;
+
+const est = { token:null, renovador:null, expira:0, regs:[], vistos:null, fotoUrl:{}, timer:null, buscando:false };
+
+function $(id){ return document.getElementById(id); }
+
+/* ===== Sessão ===== */
+function guardaSessao(d){
+  est.token = d.access_token;
+  est.renovador = d.refresh_token;
+  est.expira = Date.now() + (d.expires_in - 120) * 1000;
+  try{ if($('lembrar').checked) localStorage.setItem('pvpi_painel_rt', d.refresh_token); }catch(e){}
+}
+function entrar(){
+  const btn = $('btnEntrar'); btn.disabled = true; btn.textContent = 'Entrando…';
+  $('erroLogin').style.display = 'none';
+  fetch(URL_BASE + '/auth/v1/token?grant_type=password', {
+    method:'POST', headers:{ 'apikey':CHAVE, 'Content-Type':'application/json' },
+    body: JSON.stringify({ email:$('email').value.trim(), password:$('senha').value })
+  }).then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(function(d){ guardaSessao(d); abrePainel(); })
+    .catch(function(){ $('erroLogin').style.display = 'block'; })
+    .finally(function(){ btn.disabled = false; btn.textContent = 'Entrar'; });
+}
+function renovar(){
+  const rt = est.renovador || (function(){ try{ return localStorage.getItem('pvpi_painel_rt'); }catch(e){ return null; } })();
+  if(!rt) return Promise.reject('sem renovador');
+  return fetch(URL_BASE + '/auth/v1/token?grant_type=refresh_token', {
+    method:'POST', headers:{ 'apikey':CHAVE, 'Content-Type':'application/json' },
+    body: JSON.stringify({ refresh_token: rt })
+  }).then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(function(d){ guardaSessao(d); });
+}
+function sair(){
+  try{ localStorage.removeItem('pvpi_painel_rt'); }catch(e){}
+  est.token = null; est.renovador = null; est.regs = []; est.vistos = null; est.fotoUrl = {};
+  if(est.timer) clearInterval(est.timer);
+  $('telaPainel').classList.add('oculta'); $('cabDir').classList.add('oculta');
+  $('telaLogin').classList.remove('oculta');
+}
+
+/* ===== Chamadas com renovação automática ===== */
+function chama(caminho, opts){
+  function faz(){
+    opts = opts || {}; opts.headers = Object.assign({ 'apikey':CHAVE, 'Authorization':'Bearer '+est.token }, opts.headers||{});
+    return fetch(URL_BASE + caminho, opts);
+  }
+  const pronto = (Date.now() > est.expira) ? renovar() : Promise.resolve();
+  return pronto.then(faz).then(function(r){
+    if(r.status !== 401) return r;
+    return renovar().then(faz); // tenta uma vez com sessão renovada
+  });
+}
+
+/* ===== Painel ===== */
+function abrePainel(){
+  $('telaLogin').classList.add('oculta');
+  $('telaPainel').classList.remove('oculta');
+  $('cabDir').classList.remove('oculta');
+  carrega(true);
+  if(est.timer) clearInterval(est.timer);
+  est.timer = setInterval(function(){ carrega(false); }, INTERVALO_MS);
+}
+function carrega(manual){
+  if(est.buscando) return; est.buscando = true;
+  if(manual){ const b=$('btnAtualiza'); b.disabled=true; setTimeout(function(){ b.disabled=false; }, 800); }
+  chama('/rest/v1/registros?select=*&order=registrado_em.desc&limit=500')
+    .then(r => r.ok ? r.json() : Promise.reject('HTTP '+r.status))
+    .then(function(dados){
+      $('avisoRede').style.display = 'none';
+      if(est.vistos === null){ est.vistos = {}; dados.forEach(function(r){ est.vistos[r.protocolo] = true; }); }
+      est.regs = dados;
+      const ag = new Date();
+      $('horaTxt').textContent = 'Atualizado às ' + String(ag.getHours()).padStart(2,'0') + ':' + String(ag.getMinutes()).padStart(2,'0') + ':' + String(ag.getSeconds()).padStart(2,'0');
+      render();
+    })
+    .catch(function(e){
+      $('avisoRede').style.display = 'block';
+      if(String(e).indexOf('renovador') >= 0) sair();
+      console.error(e);
+    })
+    .finally(function(){ est.buscando = false; });
+}
+function fmtData(iso){
+  const d = new Date(iso);
+  function p(n){ return String(n).padStart(2,'0'); }
+  return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+function ehHoje(iso){
+  const d = new Date(iso), h = new Date();
+  return d.getDate()===h.getDate() && d.getMonth()===h.getMonth() && d.getFullYear()===h.getFullYear();
+}
+function el(tag, cls, txt){ const e=document.createElement(tag); if(cls)e.className=cls; if(txt!=null)e.textContent=txt; return e; }
+function render(){
+  const tipo = $('fTipo').value;
+  const busca = $('fBusca').value.trim().toUpperCase();
+  const lista = est.regs.filter(function(r){
+    if(tipo && r.tipo !== tipo) return false;
+    if(!busca) return true;
+    return [r.protocolo, r.nome, r.empresa, r.endereco, r.num_referencia, r.observacao]
+      .some(function(v){ return v && String(v).toUpperCase().indexOf(busca) >= 0; });
+  });
+  // resumo
+  const pv = est.regs.filter(r=>r.tipo==='PV').length;
+  const hoje = est.regs.filter(r=>ehHoje(r.registrado_em)).length;
+  const fotos = est.regs.reduce(function(s,r){ return s + ((r.fotos&&r.fotos.length)||0); }, 0);
+  const res = $('resumo'); res.innerHTML = '';
+  [['registros', est.regs.length], ['PV', pv], ['PI', est.regs.length-pv], ['hoje', hoje], ['fotos', fotos]].forEach(function(p){
+    const s = el('span'); s.appendChild(el('b', null, String(p[1]))); s.appendChild(document.createTextNode(' '+p[0])); res.appendChild(s);
+  });
+  // cartões
+  const g = $('grade'); g.innerHTML = '';
+  $('vazio').classList.toggle('oculta', lista.length > 0);
+  lista.forEach(function(r){
+    const c = el('article','cartao' + (est.vistos[r.protocolo] ? '' : ' novo'));
+    const cab = el('div','cab-reg');
+    cab.appendChild(el('span','proto', r.protocolo));
+    cab.appendChild(el('span','chip '+r.tipo, r.tipo));
+    if(!est.vistos[r.protocolo]) cab.appendChild(el('span','selo-novo','NOVO'));
+    cab.appendChild(el('span','quando', fmtData(r.registrado_em)));
+    c.appendChild(cab);
+    const dl = el('dl','campos');
+    function campo(rot, val){ if(!val) return; dl.appendChild(el('dt',null,rot)); dl.appendChild(el('dd',null,val)); }
+    campo('Quem', r.nome + ' · ' + r.empresa);
+    campo('Local', (r.endereco || 'sem endereço (ver mapa)') + (r.num_referencia ? ' · próx. nº '+r.num_referencia : ''));
+    campo('Observação', r.observacao);
+    const dt = el('dt',null,'Mapa'); const dd = el('dd');
+    const a = el('a',null,'Abrir no Google Maps'); a.href = 'https://maps.google.com/?q='+r.lat+','+r.lon; a.target='_blank'; a.rel='noopener';
+    dd.appendChild(a); dl.appendChild(dt); dl.appendChild(dd);
+    c.appendChild(dl);
+    if(r.fotos && r.fotos.length){
+      const fx = el('div','fotos');
+      r.fotos.forEach(function(caminho, i){
+        const slot = el('span','pend','foto '+(i+1)+'…');
+        fx.appendChild(slot);
+        urlFoto(caminho).then(function(u){
+          const la = el('a'); la.href = u; la.target='_blank'; la.rel='noopener'; la.title='Abrir a foto '+(i+1);
+          const im = document.createElement('img'); im.src = u; im.alt = 'Foto '+(i+1)+' de '+r.protocolo; im.loading='lazy';
+          la.appendChild(im); fx.replaceChild(la, slot);
+        }).catch(function(){ slot.textContent = 'foto indisponível'; });
+      });
+      c.appendChild(fx);
+    }
+    g.appendChild(c);
+  });
+}
+function urlFoto(caminho){
+  if(est.fotoUrl[caminho]) return est.fotoUrl[caminho];
+  est.fotoUrl[caminho] = chama('/storage/v1/object/sign/fotos/'+caminho, {
+    method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ expiresIn: 43200 })
+  }).then(r => r.ok ? r.json() : Promise.reject('sign HTTP '+r.status))
+    .then(function(d){ return URL_BASE + '/storage/v1' + d.signedURL; });
+  est.fotoUrl[caminho].catch(function(){ delete est.fotoUrl[caminho]; });
+  return est.fotoUrl[caminho];
+}
+
+/* ===== Início: tenta sessão lembrada ===== */
+(function(){
+  let rt = null;
+  try{ rt = localStorage.getItem('pvpi_painel_rt'); }catch(e){}
+  if(rt){ renovar().then(abrePainel).catch(function(){ /* fica na tela de login */ }); }
+  $('senha').addEventListener('keydown', function(e){ if(e.key==='Enter') entrar(); });
+})();
+</script>
+</body>
+</html>
