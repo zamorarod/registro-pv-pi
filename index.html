@@ -9,8 +9,8 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="PV e PI">
-<title>Registro de PV e PI</title>
+<meta name="apple-mobile-web-app-title" content="Fator K">
+<title>Monitoramento Fator K - ETE Suzano</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -90,8 +90,8 @@
 <body>
 <div id="tela">
 <header>
-  <h1>Registro de PV e PI</h1>
-  <div class="sub">Cadastro rápido <span class="junto">em campo</span></div>
+  <h1>Monitoramento Fator K</h1>
+  <div class="sub">ETE Suzano · registro rápido <span class="junto">em campo</span></div>
 </header>
 
 <!-- TELA 1: identificação -->
@@ -103,11 +103,11 @@
     <input type="text" id="nome" class="maiusc" placeholder="NOME E SOBRENOME" maxlength="60" autocomplete="name" autocapitalize="characters" oninput="maiuscula(this)">
   </div>
   <div>
-    <label for="empresa">Empresa</label>
-    <input type="text" id="empresa" class="maiusc" placeholder="NOME DA EMPRESA" maxlength="40" autocapitalize="characters" oninput="maiuscula(this)">
+    <label for="empresa">Cliente</label>
+    <input type="text" id="empresa" class="maiusc" placeholder="NOME DO CLIENTE" maxlength="40" autocapitalize="characters" oninput="maiuscula(this)">
   </div>
-  <div class="nota">🔒 <span>Nome e empresa identificam o registro e ficam gravados junto com as fotos enviadas.</span></div>
-  <div class="erro-msg" id="erro1">Preencha o nome e a empresa para continuar.</div>
+  <div class="nota">🔒 <span>Nome e cliente identificam o registro e ficam gravados junto com as fotos enviadas.</span></div>
+  <div class="erro-msg" id="erro1">Preencha o nome e o cliente para continuar.</div>
   <button class="btn" onclick="iniciar()">Iniciar</button>
 </main>
 
@@ -123,7 +123,7 @@
     <span class="icone"><svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="16.5" rx="6.8" ry="2.6" fill="#0072AD"/><ellipse cx="12" cy="15.7" rx="6.8" ry="2.6" fill="#2E9BD6" stroke="#005B8E" stroke-width="1"/><ellipse cx="12" cy="15.7" rx="3.6" ry="1.4" fill="#EAF7FF" stroke="#005B8E" stroke-width=".9"/><path d="M12 3.5v7M9.6 8.1 12 10.5l2.4-2.4" stroke="#0072AD" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
     <span><b>PI</b><span>Poço de inspeção</span></span>
   </button>
-  <button class="btn fantasma" onclick="irPara(1)">‹ Trocar nome ou empresa</button>
+  <button class="btn fantasma" onclick="irPara(1)">‹ Trocar nome ou cliente</button>
 </main>
 
 <!-- TELA 3: registro -->
@@ -170,7 +170,7 @@
   </div>
 </main>
 
-<footer>Registro de PV e PI<br>versão 1.1 · 10/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano<br>versão 1.2 · 10/11/2026</footer>
 <div id="visor" class="oculta" onclick="this.classList.add('oculta')">
   <img alt="foto ampliada">
   <button class="fechar">Fechar</button>
@@ -455,7 +455,7 @@ function mostraRecibo(proto){
   $('reciboDet').innerHTML =
     '<div><span>Tipo</span><b>'+(est.tipo==='PV'?'PV · Poço de visita':'PI · Poço de inspeção')+'</b></div>' +
     '<div><span>Registrado por</span><b>'+escapaHtml(est.nome)+'</b></div>' +
-    '<div><span>Empresa</span><b>'+escapaHtml(est.empresa)+'</b></div>' +
+    '<div><span>Cliente</span><b>'+escapaHtml(est.empresa)+'</b></div>' +
     (est.endereco ? '<div><span>Local</span><b>'+escapaHtml(est.endereco)+'</b></div>' : '') +
     (numRef ? '<div><span>Nº próximo</span><b>'+escapaHtml(numRef)+'</b></div>' : '') +
     (obs ? '<div><span>Observação</span><b>'+escapaHtml(obs)+'</b></div>' : '') +
