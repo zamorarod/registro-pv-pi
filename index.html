@@ -19,8 +19,8 @@
   :root{
     --ink:#0B1F33; --papel:#F2F5F6; --branco:#fff; --fio:#DCE1E4; --muted:#3D4954; --sutil:#5F6B75;
     --sabesp:#0093DD; --acento:#0072AD; --agua-bg:#E5F4FC; --ok:#1E7B34; --erro:#C0392B;
-    --pv:#4A5560; --pv-bg1:#EEF1F4; --pv-bg2:#D8DEE4;
-    --pi:#0072AD; --pi-bg1:#EAF7FF; --pi-bg2:#CFEBFB;
+    --pv:#8A5A2B; --pv-bg1:#F8F0E5; --pv-bg2:#EDDCC5;
+    --pi:#4A5560; --pi-bg1:#EEF1F4; --pi-bg2:#D8DEE4;
     --display:"Archivo",system-ui,sans-serif; --texto:"IBM Plex Sans",system-ui,sans-serif;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -63,7 +63,8 @@
   .foto-slot.precisa{border-color:var(--acento);color:var(--acento)}
   .foto-slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#0B1F33}
   .foto-slot .selo{position:absolute;left:6px;top:6px;background:rgba(11,31,51,.85);color:#fff;font-size:12px;font-weight:600;border-radius:6px;padding:3px 8px;z-index:2}
-  .foto-slot .rm{position:absolute;top:6px;right:6px;background:rgba(11,31,51,.85);color:#fff;border:0;border-radius:50%;width:30px;height:30px;font-size:15px;cursor:pointer;z-index:2}
+  .foto-slot .rm{position:absolute;top:5px;right:5px;background:rgba(11,31,51,.85);color:#fff;border:0;border-radius:50%;width:40px;height:40px;font-size:17px;cursor:pointer;z-index:2}
+  .foto-slot .rm::before{content:"";position:absolute;inset:-6px}
   #visor{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px}
   #visor img{max-width:100%;max-height:80vh;border-radius:8px}
   #visor .fechar{background:#fff;color:var(--ink);border:0;border-radius:12px;padding:12px 26px;font:700 17px var(--texto)}
@@ -107,7 +108,7 @@
     <input type="text" id="empresa" class="maiusc" placeholder="NOME DO CLIENTE" maxlength="40" autocapitalize="characters" oninput="maiuscula(this)">
   </div>
   <div class="nota">🔒 <span>Nome e cliente identificam o registro e ficam gravados junto com as fotos enviadas.</span></div>
-  <div class="erro-msg" id="erro1">Preencha o nome e o cliente para continuar.</div>
+  <div class="erro-msg" id="erro1">Escreva seu nome e sobrenome e o nome do cliente para continuar.</div>
   <button class="btn" onclick="iniciar()">Iniciar</button>
 </main>
 
@@ -116,11 +117,11 @@
   <h2 style="text-align:center">O que você vai <span class="junto">registrar?</span></h2>
   <p class="ajuda" style="text-align:center">Toque em uma das <span class="junto">opções.</span></p>
   <button class="cartaozao pv" onclick="escolher('PV')">
-    <span class="icone"><svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="16.5" rx="8.5" ry="3.2" fill="#4A5560"/><ellipse cx="12" cy="15.6" rx="8.5" ry="3.2" fill="#6B7680" stroke="#3A444E" stroke-width="1"/><ellipse cx="12" cy="15.6" rx="5.2" ry="1.9" fill="none" stroke="#3A444E" stroke-width=".9"/><path d="M9.2 15.6h5.6M12 14.3v2.6" stroke="#3A444E" stroke-width=".9"/></svg></span>
+    <span class="icone"><svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="16.5" rx="8.5" ry="3.2" fill="#8A5A2B"/><ellipse cx="12" cy="15.6" rx="8.5" ry="3.2" fill="#A6703A" stroke="#6E4620" stroke-width="1"/><ellipse cx="12" cy="15.6" rx="5.2" ry="1.9" fill="none" stroke="#6E4620" stroke-width=".9"/><path d="M9.2 15.6h5.6M12 14.3v2.6" stroke="#6E4620" stroke-width=".9"/></svg></span>
     <span><b>PV</b><span>Poço de visita</span></span>
   </button>
   <button class="cartaozao pi" onclick="escolher('PI')">
-    <span class="icone"><svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="16.5" rx="6.8" ry="2.6" fill="#0072AD"/><ellipse cx="12" cy="15.7" rx="6.8" ry="2.6" fill="#2E9BD6" stroke="#005B8E" stroke-width="1"/><ellipse cx="12" cy="15.7" rx="3.6" ry="1.4" fill="#EAF7FF" stroke="#005B8E" stroke-width=".9"/><path d="M12 3.5v7M9.6 8.1 12 10.5l2.4-2.4" stroke="#0072AD" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    <span class="icone"><svg viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="16.5" rx="6.8" ry="2.6" fill="#4A5560"/><ellipse cx="12" cy="15.7" rx="6.8" ry="2.6" fill="#6B7680" stroke="#3A444E" stroke-width="1"/><ellipse cx="12" cy="15.7" rx="3.6" ry="1.4" fill="#EEF1F4" stroke="#3A444E" stroke-width=".9"/><path d="M12 3.5v7M9.6 8.1 12 10.5l2.4-2.4" stroke="#3A444E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
     <span><b>PI</b><span>Poço de inspeção</span></span>
   </button>
   <button class="btn fantasma" onclick="irPara(1)">‹ Trocar nome ou cliente</button>
@@ -130,12 +131,12 @@
 <main id="t3" class="oculta">
   <div class="chip-tipo" id="chipTipo">PV</div>
   <h2>Fotos e local</h2>
-  <p class="ajuda">Tire 2 fotos do local (obrigatórias) — elas saem com data, hora e posição gravadas. Se quiser, acrescente mais 2. Confira se o pino do mapa está bem em cima do <span id="tipoTxt">PV</span>.</p>
+  <p class="ajuda">Tire 2 fotos do local (obrigatórias). Elas saem com data e hora gravadas e, com o local já marcado, também a posição. Se quiser, acrescente mais 2. Confira se o pino do mapa está bem em cima do <span id="tipoTxt">PV</span>.</p>
   <div class="fotos">
-    <div class="foto-slot precisa" id="slot0" role="button" tabindex="0" onclick="abrirCamera(0)"><span class="cam">📷</span><span>Foto 1<br><b>obrigatória</b></span></div>
-    <div class="foto-slot precisa" id="slot1" role="button" tabindex="0" onclick="abrirCamera(1)"><span class="cam">📷</span><span>Foto 2<br><b>obrigatória</b></span></div>
-    <div class="foto-slot" id="slot2" role="button" tabindex="0" onclick="abrirCamera(2)"><span class="cam">📷</span><span>Foto 3<br>(opcional)</span></div>
-    <div class="foto-slot" id="slot3" role="button" tabindex="0" onclick="abrirCamera(3)"><span class="cam">📷</span><span>Foto 4<br>(opcional)</span></div>
+    <div class="foto-slot precisa" id="slot0" role="button" tabindex="0" onclick="abrirCamera(0)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirCamera(0)}"><span class="cam">📷</span><span>Foto 1<br><b>obrigatória</b></span></div>
+    <div class="foto-slot precisa" id="slot1" role="button" tabindex="0" onclick="abrirCamera(1)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirCamera(1)}"><span class="cam">📷</span><span>Foto 2<br><b>obrigatória</b></span></div>
+    <div class="foto-slot" id="slot2" role="button" tabindex="0" onclick="abrirCamera(2)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirCamera(2)}"><span class="cam">📷</span><span>Foto 3<br>(opcional)</span></div>
+    <div class="foto-slot" id="slot3" role="button" tabindex="0" onclick="abrirCamera(3)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirCamera(3)}"><span class="cam">📷</span><span>Foto 4<br>(opcional)</span></div>
   </div>
   <input type="file" id="cam" accept="image/*" capture="environment" class="oculta">
   <div class="erro-msg" id="erroFoto">Faltam as 2 fotos obrigatórias.</div>
@@ -154,7 +155,8 @@
   </div>
   <div class="erro-msg" id="erroEnvio"></div>
   <button class="btn" id="btnEnviar" onclick="enviar()">Enviar registro</button>
-  <button class="btn fantasma" onclick="irPara(2)">‹ Voltar</button>
+  <p class="ajuda" style="text-align:center;font-size:13.5px;margin-top:-6px">Não feche o app enquanto envia.</p>
+  <button class="btn fantasma" onclick="if(!est.enviando)irPara(2)">‹ Voltar</button>
 </main>
 
 <!-- TELA 4: confirmação -->
@@ -170,7 +172,7 @@
   </div>
 </main>
 
-<footer>Fator K - ETE Suzano<br>versão 1.3 · 10/11/2026</footer>
+<footer>Fator K - ETE Suzano<br>versão 1.4 · 10/11/2026</footer>
 <div id="visor" class="oculta" onclick="this.classList.add('oculta')">
   <img alt="foto ampliada">
   <button class="fechar">Fechar</button>
@@ -189,9 +191,10 @@ const DEMO = SUPABASE_URL.indexOf('__') === 0;      // sem URL colada = modo dem
 /* ===== Estado ===== */
 const est = {
   nome:'', empresa:'', tipo:'',
-  fotos:[null,null,null,null],      // dataURL JPEG
-  lat:null, lon:null, gpsOk:false, endereco:'',
-  mapa:null, pino:null, slotAtual:0, enviando:false
+  fotos:[null,null,null,null],      // {blob, url} JPEG carimbado
+  fotoIds:[null,null,null,null],    // identidade de cada captura (reenvio não troca foto)
+  lat:null, lon:null, gpsOk:false, precisao:null, endereco:'',
+  mapa:null, pino:null, slotAtual:0, enviando:false, protoAtual:null
 };
 
 function $(id){ return document.getElementById(id); }
@@ -228,6 +231,7 @@ function iniciar(){
 
 /* ===== Tela 2 ===== */
 function escolher(tipo){
+  est.protoAtual = null; // registro novo (ou tipo trocado) ganha protocolo novo
   est.tipo = tipo;
   $('chipTipo').textContent = tipo === 'PV' ? 'PV · Poço de visita' : 'PI · Poço de inspeção';
   $('tipoTxt').textContent = tipo;
@@ -238,17 +242,26 @@ function escolher(tipo){
 
 /* ===== Fotos ===== */
 function abrirCamera(i){
+  if(est.enviando) return;
   if(est.fotos[i]){ // já tem foto: amplia
-    const v = $('visor'); v.querySelector('img').src = est.fotos[i]; v.classList.remove('oculta');
+    const v = $('visor'); v.querySelector('img').src = est.fotos[i].url; v.classList.remove('oculta');
     return;
   }
+  if(!est.gpsOk && !confirm('O GPS ainda não marcou o ponto. A foto sairá sem a posição gravada na imagem. Tirar mesmo assim?')) return;
   est.slotAtual = i;
   $('cam').click();
+}
+function erroDeFoto(msg){
+  const e = $('erroFoto'); e.textContent = msg; e.style.display = 'block';
 }
 $('cam').addEventListener('change', function(){
   const f = this.files && this.files[0]; this.value = '';
   if(!f) return;
   const img = new Image();
+  img.onerror = function(){
+    URL.revokeObjectURL(img.src);
+    erroDeFoto('Não foi possível ler essa foto. Tire de novo pela câmera.');
+  };
   img.onload = function(){
     const MAX = 1600;
     const esc = Math.min(1, MAX/Math.max(img.width, img.height));
@@ -257,8 +270,11 @@ $('cam').addEventListener('change', function(){
     const ctx = c.getContext('2d');
     ctx.drawImage(img, 0, 0, c.width, c.height);
     carimba(ctx, c.width, c.height);
-    poeFoto(est.slotAtual, c.toDataURL('image/jpeg', .85));
     URL.revokeObjectURL(img.src);
+    c.toBlob(function(b){
+      if(!b){ erroDeFoto('Não foi possível preparar a foto. Tire de novo.'); return; }
+      poeFoto(est.slotAtual, b);
+    }, 'image/jpeg', .85);
   };
   img.src = URL.createObjectURL(f);
 });
@@ -282,10 +298,13 @@ function carimba(ctx, w, h){
     ctx.fillText(s, 12, h-alt+9+i*lh);
   });
 }
-function poeFoto(i, dataUrl){
-  est.fotos[i] = dataUrl;
+function poeFoto(i, blob){
+  if(est.fotos[i]) URL.revokeObjectURL(est.fotos[i].url);
+  const url = URL.createObjectURL(blob);
+  est.fotos[i] = { blob: blob, url: url };
+  est.fotoIds[i] = Date.now().toString(36) + Math.floor(Math.random()*1679616).toString(36);
   const s = $('slot'+i);
-  s.innerHTML = '<img src="'+dataUrl+'" alt="Foto '+(i+1)+'">' +
+  s.innerHTML = '<img src="'+url+'" alt="Foto '+(i+1)+'">' +
     '<span class="selo">Foto '+(i+1)+'</span>' +
     '<button class="rm" onclick="tiraFoto(event,'+i+')" aria-label="Remover foto">✕</button>';
   s.classList.remove('precisa');
@@ -293,12 +312,20 @@ function poeFoto(i, dataUrl){
 }
 function tiraFoto(ev, i){
   ev.stopPropagation();
+  if(est.enviando) return;
+  if(est.fotos[i]) URL.revokeObjectURL(est.fotos[i].url);
   est.fotos[i] = null;
+  est.fotoIds[i] = null;
   const s = $('slot'+i);
   const obr = i < 2;
   s.innerHTML = '<span class="cam">📷</span><span>Foto '+(i+1)+'<br>'+(obr?'<b>obrigatória</b>':'(opcional)')+'</span>';
   s.classList.toggle('precisa', obr);
 }
+window.addEventListener('beforeunload', function(e){
+  if(est.fotos.some(Boolean) && !$('t3').classList.contains('oculta')){
+    e.preventDefault(); e.returnValue = '';
+  }
+});
 
 /* ===== Mapa e GPS ===== */
 function montaMapa(){
@@ -314,13 +341,21 @@ function pedirGps(){
   if(!navigator.geolocation){ $('endTxt').textContent = 'Este aparelho não informou a localização. Toque no mapa para marcar o ponto.'; return; }
   $('endTxt').textContent = 'Localizando você no mapa…';
   navigator.geolocation.getCurrentPosition(
-    function(p){ fixaLocal(p.coords.latitude, p.coords.longitude, true); },
-    function(){ $('endTxt').textContent = 'Não foi possível usar o GPS. Toque no mapa para marcar o ponto.'; },
-    {enableHighAccuracy:true, timeout:12000, maximumAge:0}
+    function(p){
+      est.precisao = p.coords.accuracy || null;
+      fixaLocal(p.coords.latitude, p.coords.longitude, true);
+    },
+    function(err){
+      $('endTxt').textContent = (err && err.code === 1)
+        ? 'O app está sem permissão de localização. Libere a localização nas configurações do celular e toque de novo em "Usar minha localização".'
+        : 'Não foi possível usar o GPS agora. Toque no mapa para marcar o ponto.';
+    },
+    {enableHighAccuracy:true, timeout:20000, maximumAge:15000}
   );
 }
 function fixaLocal(lat, lon, veioDoGps){
   est.lat = lat; est.lon = lon; est.gpsOk = true;
+  if(!veioDoGps) est.precisao = null; // ponto escolhido pelo usuário: sem aviso de precisão
   $('erroLoc').style.display = 'none';
   try{
     montaMapa();
@@ -341,6 +376,7 @@ function fixaLocal(lat, lon, veioDoGps){
 let geoSeq = 0;
 function buscaEndereco(lat, lon){
   const seq = ++geoSeq;
+  est.endereco = ''; // nunca manter endereço de outro ponto
   $('endTxt').textContent = 'Confirmando o endereço…';
   comTimeout('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lon+'&accept-language=pt-BR&zoom=18', {}, 10000)
     .then(r => r.json())
@@ -351,14 +387,17 @@ function buscaEndereco(lat, lon){
       const bairro = a.suburb || a.neighbourhood || '';
       const cidade = a.city || a.town || a.village || a.municipality || '';
       est.endereco = [rua, bairro, cidade].filter(Boolean).join(', ');
-      $('endTxt').innerHTML = est.endereco ? '<b>'+escapaHtml(est.endereco)+'</b>' : 'Endereço não encontrado. O ponto do mapa será enviado mesmo assim.';
+      const avisoGps = (est.precisao && est.precisao > 50)
+        ? '<br><span style="color:#7a5a00">GPS aproximado (±'+Math.round(est.precisao)+' m). Arraste o pino até o ponto exato.</span>' : '';
+      $('endTxt').innerHTML = (est.endereco ? '<b>'+escapaHtml(est.endereco)+'</b>' : 'Endereço não encontrado. O ponto do mapa será enviado mesmo assim.') + avisoGps;
     })
     .catch(function(){ if(seq === geoSeq) $('endTxt').textContent = 'Sem internet para buscar o endereço. O ponto do mapa será enviado mesmo assim.'; });
 }
 
 /* ===== Envio ===== */
 function protocolo(){
-  const n = String(Math.floor(100000 + Math.random()*900000));
+  // horário + aleatório em base 36: praticamente impossível dois aparelhos colidirem
+  const n = (Date.now().toString(36) + Math.floor(Math.random()*1296).toString(36).padStart(2,'0')).toUpperCase();
   return est.tipo + '-' + new Date().getFullYear() + '-' + n;
 }
 function comTimeout(url, opts, ms){
@@ -366,12 +405,6 @@ function comTimeout(url, opts, ms){
   const t = setTimeout(function(){ ctl.abort(); }, ms || 30000);
   opts = opts || {}; opts.signal = ctl.signal;
   return fetch(url, opts).finally(function(){ clearTimeout(t); });
-}
-function b64paraBlob(dataUrl){
-  const b = atob(dataUrl.split(',')[1]);
-  const arr = new Uint8Array(b.length);
-  for(let i=0;i<b.length;i++) arr[i] = b.charCodeAt(i);
-  return new Blob([arr], {type:'image/jpeg'});
 }
 function enviar(){
   if(est.enviando) return;
@@ -400,11 +433,14 @@ function enviar(){
     registrado_em: new Date().toISOString()
   };
 
-  const envio = DEMO ? envioDemo(proto) : envioSupabase(proto, pacote);
+  const envio = DEMO ? envioDemo(proto) : envioSupabase(proto, pacote, btn);
   envio.then(function(){
     mostraRecibo(proto);
   }).catch(function(e){
-    $('erroEnvio').textContent = 'Não foi possível enviar. Verifique a internet e toque de novo em "Enviar registro".';
+    const falhaDeRede = (e && (e.name === 'AbortError' || e instanceof TypeError));
+    $('erroEnvio').textContent = falhaDeRede
+      ? 'Não foi possível enviar. Verifique a internet e toque de novo em "Enviar registro". Suas fotos continuam nesta tela.'
+      : 'O envio foi recusado pelo sistema. Toque de novo em "Enviar registro"; se continuar, avise o responsável. Suas fotos continuam nesta tela.';
     $('erroEnvio').style.display = 'block';
     console.error(e);
   }).finally(function(){
@@ -416,32 +452,41 @@ function envioDemo(proto){
   console.log('[DEMO] registro', proto, est);
   return new Promise(function(res){ setTimeout(res, 900); });
 }
-function envioSupabase(proto, pacote){
-  // 1) sobe as fotos no bucket; 2) grava a linha na tabela com os caminhos
-  const caminhos = [];
+function envioSupabase(proto, pacote, btn){
+  // 1) sobe as fotos no bucket; 2) grava a linha na tabela com os caminhos.
+  // Cada captura tem um caminho próprio (fotoIds): o reenvio reaproveita a foto certa (409 = já subiu),
+  // e uma foto trocada ganha caminho novo. A gravação ignora protocolo repetido (reenvio não duplica).
+  const aEnviar = [];
+  est.fotos.forEach(function(f, i){ if(f) aEnviar.push({ f: f, i: i }); });
+  const caminhos = aEnviar.map(function(x){ return proto + '/foto' + (x.i+1) + '-' + est.fotoIds[x.i] + '.jpg'; });
   let fila = Promise.resolve();
-  est.fotos.forEach(function(f, i){
-    if(!f) return;
-    const caminho = proto + '/foto' + (i+1) + '.jpg';
-    caminhos.push(caminho);
+  aEnviar.forEach(function(x, k){
     fila = fila.then(function(){
-      return comTimeout(SUPABASE_URL + '/storage/v1/object/' + BUCKET + '/' + caminho, {
+      if(btn) btn.textContent = 'Enviando foto ' + (k+1) + ' de ' + aEnviar.length + '…';
+      return comTimeout(SUPABASE_URL + '/storage/v1/object/' + BUCKET + '/' + caminhos[k], {
         method:'POST',
         headers:{ 'Authorization':'Bearer '+SUPABASE_KEY, 'apikey':SUPABASE_KEY, 'Content-Type':'image/jpeg' },
-        body: b64paraBlob(f)
+        body: x.f.blob
       }, 30000).then(function(r){
-        // 409 = esta foto já subiu numa tentativa anterior: está lá, pode seguir
-        if(!r.ok && r.status !== 409) throw new Error('foto '+(i+1)+': HTTP '+r.status);
+        if(r.ok || r.status === 409) return; // 409 = esta mesma captura já subiu antes
+        return r.json().catch(function(){ return {}; }).then(function(d){
+          if(d && (d.error === 'Duplicate' || d.statusCode === '409' || d.code === 'KeyAlreadyExists')) return;
+          throw new Error('foto '+(x.i+1)+': HTTP '+r.status);
+        });
       });
     });
   });
   return fila.then(function(){
+    if(btn) btn.textContent = 'Gravando o registro…';
     pacote.fotos = caminhos;
     return comTimeout(SUPABASE_URL + '/rest/v1/' + TABELA, {
       method:'POST',
       headers:{ 'Authorization':'Bearer '+SUPABASE_KEY, 'apikey':SUPABASE_KEY, 'Content-Type':'application/json', 'Prefer':'return=minimal' },
       body: JSON.stringify(pacote)
-    }, 30000).then(function(r){ if(!r.ok) throw new Error('tabela: HTTP '+r.status); });
+    }, 30000).then(function(r){
+      // 409 = este protocolo já foi gravado numa tentativa anterior deste mesmo registro: concluído
+      if(!r.ok && r.status !== 409) throw new Error('tabela: HTTP '+r.status);
+    });
   });
 }
 function escapaHtml(t){
@@ -468,7 +513,11 @@ function mostraRecibo(proto){
 function novoRegistro(){
   est.tipo = '';
   est.protoAtual = null;
+  geoSeq++; // resposta atrasada de endereço do registro anterior é descartada
+  est.fotos.forEach(function(f){ if(f) URL.revokeObjectURL(f.url); });
   est.fotos = [null,null,null,null];
+  est.fotoIds = [null,null,null,null];
+  est.precisao = null;
   [0,1,2,3].forEach(function(i){
     const s = $('slot'+i);
     const obr = i < 2;
@@ -481,6 +530,11 @@ function novoRegistro(){
   $('endTxt').textContent = 'Toque em "Usar minha localização" para marcar o ponto no mapa.';
   ['erroFoto','erroLoc','erroEnvio'].forEach(function(id){ $(id).style.display='none'; });
   irPara(2); // nome e empresa ficam guardados
+}
+
+/* ===== App abre mesmo sem internet ===== */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(function(){});
 }
 </script>
 </body>
