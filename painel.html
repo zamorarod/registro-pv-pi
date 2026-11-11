@@ -69,7 +69,10 @@
   .abas button.ativa{background:var(--acento);color:#fff}
   #mapaP{height:min(62vh,560px);border-radius:14px;border:1px solid var(--fio);overflow:hidden}
   .legenda{display:flex;gap:16px;align-items:center;font-size:13.5px;color:var(--muted);padding:2px 4px}
-  .legenda .bola{display:inline-block;width:13px;height:13px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(11,31,51,.25);vertical-align:-2px;margin-right:6px}
+  .legenda svg{vertical-align:-4px;margin-right:5px}
+  .pino{background:none;border:0}
+  .pino svg{filter:drop-shadow(0 2px 3px rgba(11,31,51,.45))}
+  .leaflet-control-layers label{font:600 13.5px var(--texto)}
   .pop-ficha{font:14px/1.5 var(--texto);color:var(--ink)}
   .pop-ficha b{font:700 15px var(--display)}
   .pop-ficha .btn{padding:8px 12px;font-size:13.5px;margin-top:8px}
@@ -226,9 +229,9 @@
   <div id="vistaMapa" class="oculta">
     <div id="mapaP"></div>
     <div class="legenda">
-      <span><span class="bola" style="background:#3D4954"></span>PV · Poço de visita</span>
-      <span><span class="bola" style="background:#0093DD"></span>PI · Poço de inspeção</span>
-      <span>Toque no ponto para ver a ficha</span>
+      <span><svg width="14" height="19" viewBox="0 0 24 34"><path d="M12 1C6 1 1.5 5.6 1.5 11.5 1.5 19 12 33 12 33s10.5-14 10.5-21.5C22.5 5.6 18 1 12 1Z" fill="#3D4954" stroke="#fff" stroke-width="2"/><circle cx="12" cy="11.5" r="4.2" fill="#fff"/></svg>PV · Poço de visita</span>
+      <span><svg width="14" height="19" viewBox="0 0 24 34"><path d="M12 1C6 1 1.5 5.6 1.5 11.5 1.5 19 12 33 12 33s10.5-14 10.5-21.5C22.5 5.6 18 1 12 1Z" fill="#0093DD" stroke="#fff" stroke-width="2"/><circle cx="12" cy="11.5" r="4.2" fill="#fff"/></svg>PI · Poço de inspeção</span>
+      <span>Toque no pino para ver a ficha · troque a camada no canto do mapa</span>
     </div>
   </div>
 </main>
@@ -237,7 +240,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.3 · 10/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.4 · 10/11/2026</footer>
 
 <script>
 "use strict";
@@ -443,12 +446,32 @@ function mostraVista(v){
     setTimeout(function(){ if(est.mapa){ est.mapa.invalidateSize(); enquadra(); } }, 80);
   }
 }
+function pinoDe(tipo){
+  const cor = tipo === 'PV' ? '#3D4954' : '#0093DD';
+  return L.divIcon({
+    className: 'pino',
+    html: '<svg width="30" height="42" viewBox="0 0 24 34"><path d="M12 1C6 1 1.5 5.6 1.5 11.5 1.5 19 12 33 12 33s10.5-14 10.5-21.5C22.5 5.6 18 1 12 1Z" fill="'+cor+'" stroke="#fff" stroke-width="2"/><circle cx="12" cy="11.5" r="4.2" fill="#fff"/></svg>',
+    iconSize: [30, 42], iconAnchor: [15, 40], popupAnchor: [0, -34]
+  });
+}
+let PINO_PV = null, PINO_PI = null;
 function montaMapaPainel(){
   if(est.mapa || typeof L === 'undefined') return;
-  est.mapa = L.map('mapaP', {zoomControl:true}).setView([-23.54,-46.4], 11);
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19, attribution: 'Mapa © Esri | Endereços © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-  }).addTo(est.mapa);
+  PINO_PV = pinoDe('PV'); PINO_PI = pinoDe('PI');
+  const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: 'Mapa © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  });
+  const esriRuas = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, attribution: 'Mapa © Esri'
+  });
+  const satelite = L.layerGroup([
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19, attribution: 'Imagens © Esri'
+    }),
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
+  ]);
+  est.mapa = L.map('mapaP', {zoomControl:true, layers:[osm]}).setView([-23.54,-46.4], 11);
+  L.control.layers({ 'Ruas (OpenStreetMap)': osm, 'Ruas (Esri)': esriRuas, 'Satélite': satelite }, null, {collapsed:false}).addTo(est.mapa);
   est.camadaPontos = L.layerGroup().addTo(est.mapa);
 }
 function renderMapa(){
@@ -456,9 +479,7 @@ function renderMapa(){
   est.camadaPontos.clearLayers();
   filtrados().forEach(function(r){
     if(r.lat == null || r.lon == null) return;
-    const m = L.circleMarker([r.lat, r.lon], {
-      radius: 9, color: '#fff', weight: 2.5, fillColor: r.tipo==='PV' ? '#3D4954' : '#0093DD', fillOpacity: 1
-    });
+    const m = L.marker([r.lat, r.lon], { icon: r.tipo==='PV' ? PINO_PV : PINO_PI });
     const box = document.createElement('div'); box.className = 'pop-ficha';
     box.appendChild(el('b', null, r.protocolo));
     box.appendChild(el('div', null, (r.tipo==='PV'?'PV · Poço de visita':'PI · Poço de inspeção') + ' · ' + fmtData(r.registrado_em)));
