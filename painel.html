@@ -86,7 +86,7 @@
   .linha:focus-visible{outline:2px solid var(--acento);outline-offset:-2px}
   .linha.nova{background:#F0F9FF}
   .c-proto{font:700 14px/1.2 var(--display);letter-spacing:.02em;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0;white-space:nowrap}
-  .selo-novo{background:var(--sabesp);color:#fff;font-size:10px;font-weight:700;border-radius:6px;padding:1.5px 6px;letter-spacing:.05em}
+  .selo-novo{background:var(--acento);color:#fff;font-size:11px;font-weight:700;border-radius:6px;padding:1.5px 7px;letter-spacing:.05em}
   .linha.nova{box-shadow:inset 3px 0 0 var(--sabesp)}
   .chip{font-weight:700;font-size:12px;border-radius:7px;padding:3px 0;text-align:center}
   .chip.PV{background:#F5EDE2;color:#7A4E20}
@@ -163,6 +163,7 @@
     <label class="lembrar"><input type="checkbox" id="lembrar" checked> Continuar conectado neste computador</label>
     <div class="erro-msg" id="erroLogin">E-mail ou senha incorretos. Confira e tente de novo.</div>
     <button class="btn" id="btnEntrar" onclick="entrar()">Entrar</button>
+    <p class="ajuda" style="font-size:13px">Esqueceu a senha? Fale com o responsável pelo sistema para gerar uma nova.</p>
   </div>
 </main>
 
@@ -216,9 +217,10 @@
     </div>
   </div>
   <div class="aviso-rede" id="avisoRede">⚠️ Sem conexão com o banco agora. Tentando de novo em instantes…</div>
+  <div class="aviso-rede" id="avisoLimite">⚠️ Mostrando os 1000 registros mais recentes. Use os filtros de data para ver os antigos.</div>
   <div class="abas" role="tablist">
-    <button type="button" id="abaLista" class="ativa" onclick="mostraVista('lista')">Lista</button>
-    <button type="button" id="abaMapa" onclick="mostraVista('mapa')">Mapa</button>
+    <button type="button" id="abaLista" class="ativa" role="tab" aria-selected="true" onclick="mostraVista('lista')">Lista</button>
+    <button type="button" id="abaMapa" role="tab" aria-selected="false" onclick="mostraVista('mapa')">Mapa</button>
   </div>
   <div id="vistaLista">
     <div class="tabela">
@@ -241,7 +243,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.6 · 10/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.7 · 10/11/2026</footer>
 
 <script>
 "use strict";
@@ -249,55 +251,88 @@ const URL_BASE = 'https://dqacgeqkhsqymhlxszct.supabase.co';
 const CHAVE = 'sb_publishable_DOMUkskgKAgVq1qVo1gBrg_FCSti82Q'; // chave pública (a mesma do app)
 const INTERVALO_MS = 30000;
 
-const est = { token:null, renovador:null, expira:0, regs:[], vistos:null, fotoUrl:{}, timer:null, buscando:false,
+const est = { token:null, renovador:null, expira:0, regs:[], vistos:null, fotoUrl:Object.create(null), timer:null, buscando:false,
               mapa:null, camadaPontos:null, vista:'lista', mapaEnquadrado:false };
 
 function $(id){ return document.getElementById(id); }
+function comTimeout(url, opts, ms){
+  const ctl = new AbortController();
+  const t = setTimeout(function(){ ctl.abort(); }, ms || 20000);
+  opts = Object.assign({}, opts, { signal: ctl.signal });
+  return fetch(url, opts).finally(function(){ clearTimeout(t); });
+}
 
 /* ===== Sessão ===== */
 function guardaSessao(d){
   est.token = d.access_token;
   est.renovador = d.refresh_token;
   est.expira = Date.now() + (d.expires_in - 120) * 1000;
-  try{ if($('lembrar').checked) localStorage.setItem('pvpi_painel_rt', d.refresh_token); }catch(e){}
+  try{
+    if($('lembrar').checked) localStorage.setItem('pvpi_painel_rt', d.refresh_token);
+    else localStorage.removeItem('pvpi_painel_rt');
+  }catch(e){}
 }
 function entrar(){
-  const btn = $('btnEntrar'); btn.disabled = true; btn.textContent = 'Entrando…';
+  const btn = $('btnEntrar');
+  if(btn.disabled) return; // Enter repetido não dispara dois logins
+  btn.disabled = true; btn.textContent = 'Entrando…';
   $('erroLogin').style.display = 'none';
-  fetch(URL_BASE + '/auth/v1/token?grant_type=password', {
+  comTimeout(URL_BASE + '/auth/v1/token?grant_type=password', {
     method:'POST', headers:{ 'apikey':CHAVE, 'Content-Type':'application/json' },
     body: JSON.stringify({ email:$('email').value.trim(), password:$('senha').value })
-  }).then(r => r.ok ? r.json() : Promise.reject(r.status))
+  }, 20000).then(r => r.ok ? r.json() : Promise.reject(r.status))
     .then(function(d){ guardaSessao(d); abrePainel(); })
-    .catch(function(){ $('erroLogin').style.display = 'block'; })
+    .catch(function(e){
+      const el = $('erroLogin');
+      el.textContent = (typeof e === 'number')
+        ? 'E-mail ou senha incorretos. Confira e tente de novo.'
+        : 'Sem conexão com o servidor. Verifique a internet e tente de novo.';
+      el.style.display = 'block';
+    })
     .finally(function(){ btn.disabled = false; btn.textContent = 'Entrar'; });
 }
+let renovando = null; // uma renovação por vez (chamadas simultâneas esperam a mesma)
 function renovar(){
+  if(renovando) return renovando;
   const rt = est.renovador || (function(){ try{ return localStorage.getItem('pvpi_painel_rt'); }catch(e){ return null; } })();
   if(!rt) return Promise.reject('sem renovador');
-  return fetch(URL_BASE + '/auth/v1/token?grant_type=refresh_token', {
+  renovando = comTimeout(URL_BASE + '/auth/v1/token?grant_type=refresh_token', {
     method:'POST', headers:{ 'apikey':CHAVE, 'Content-Type':'application/json' },
     body: JSON.stringify({ refresh_token: rt })
-  }).then(r => r.ok ? r.json() : Promise.reject(r.status))
-    .then(function(d){ guardaSessao(d); });
+  }, 20000).then(function(r){
+    if(r.ok) return r.json();
+    if(r.status >= 400 && r.status < 500){
+      try{ localStorage.removeItem('pvpi_painel_rt'); }catch(e){}
+      return Promise.reject('sessao encerrada');
+    }
+    return Promise.reject(r.status);
+  }).then(function(d){ guardaSessao(d); })
+    .finally(function(){ renovando = null; });
+  return renovando;
 }
 function sair(){
+  if(est.token){
+    fetch(URL_BASE + '/auth/v1/logout', { method:'POST',
+      headers:{ 'apikey':CHAVE, 'Authorization':'Bearer '+est.token } }).catch(function(){});
+  }
   try{ localStorage.removeItem('pvpi_painel_rt'); }catch(e){}
-  est.token = null; est.renovador = null; est.regs = []; est.vistos = null; est.fotoUrl = {};
+  est.token = null; est.renovador = null; est.regs = []; est.vistos = null; est.fotoUrl = Object.create(null);
   if(est.timer) clearInterval(est.timer);
   fechaDetalhe();
   $('telaPainel').classList.add('oculta'); $('cabDir').classList.add('oculta');
   $('telaLogin').classList.remove('oculta');
 }
 function chama(caminho, opts){
+  opts = opts || {};
+  const extras = opts.headers || {};
   function faz(){
-    opts = opts || {}; opts.headers = Object.assign({ 'apikey':CHAVE, 'Authorization':'Bearer '+est.token }, opts.headers||{});
-    return fetch(URL_BASE + caminho, opts);
+    const h = Object.assign({}, extras, { 'apikey':CHAVE, 'Authorization':'Bearer '+est.token });
+    return comTimeout(URL_BASE + caminho, Object.assign({}, opts, { headers: h }), 20000);
   }
   const pronto = (Date.now() > est.expira) ? renovar() : Promise.resolve();
   return pronto.then(faz).then(function(r){
     if(r.status !== 401) return r;
-    return renovar().then(faz);
+    return renovar().then(faz); // o retry usa o token NOVO
   });
 }
 
@@ -317,7 +352,18 @@ function carrega(manual){
     .then(r => r.ok ? r.json() : Promise.reject('HTTP '+r.status))
     .then(function(dados){
       $('avisoRede').style.display = 'none';
-      if(est.vistos === null){ est.vistos = {}; dados.forEach(function(r){ est.vistos[r.protocolo] = true; }); }
+      $('avisoLimite').style.display = (dados.length === 1000) ? 'block' : 'none';
+      if(est.vistos === null){
+        est.vistos = Object.create(null);
+        let guardados = null;
+        try{ guardados = JSON.parse(localStorage.getItem('pvpi_vistos') || 'null'); }catch(e){}
+        if(guardados && guardados.length){
+          guardados.forEach(function(p){ est.vistos[p] = true; }); // o que chegou com o painel fechado ganha selo NOVO
+        } else {
+          dados.forEach(function(r){ est.vistos[r.protocolo] = true; }); // primeiro uso: nada é novo
+          salvaVistos();
+        }
+      }
       est.regs = dados;
       const ag = new Date();
       function p(n){ return String(n).padStart(2,'0'); }
@@ -325,21 +371,38 @@ function carrega(manual){
       render();
     })
     .catch(function(e){
+      if(/renovador|sessao encerrada/.test(String(e))){
+        const el = $('erroLogin');
+        el.textContent = 'Sua sessão terminou. Entre de novo para continuar.';
+        el.style.display = 'block';
+        sair();
+        return;
+      }
       $('avisoRede').style.display = 'block';
-      if(String(e).indexOf('renovador') >= 0) sair();
       console.error(e);
     })
     .finally(function(){ est.buscando = false; });
 }
+function salvaVistos(){
+  try{ localStorage.setItem('pvpi_vistos', JSON.stringify(Object.keys(est.vistos).slice(-4000))); }catch(e){}
+}
 
 /* ===== Apoio ===== */
 function p2(n){ return String(n).padStart(2,'0'); }
+function paraData(iso){
+  // aceita também o formato com espaço e fuso curto ('2026-11-11 00:16:36+00'), que o Safari recusa
+  if(typeof iso === 'string'){
+    iso = iso.replace(' ', 'T');
+    if(/[+\-]\d{2}$/.test(iso)) iso += ':00';
+  }
+  return new Date(iso);
+}
 function fmtData(iso){
-  const d = new Date(iso);
+  const d = paraData(iso);
   return p2(d.getDate())+'/'+p2(d.getMonth()+1)+'/'+d.getFullYear()+' '+p2(d.getHours())+':'+p2(d.getMinutes());
 }
 function dataLocal(iso){
-  const d = new Date(iso);
+  const d = paraData(iso);
   return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
 }
 function localDe(r){
@@ -377,6 +440,9 @@ function render(){
   $('cardFiltro').classList.toggle('oculta', !filtrando);
   if(est.vista === 'mapa') renderMapa();
   const g = $('lista'); g.innerHTML = '';
+  $('vazio').textContent = est.regs.length === 0
+    ? 'Ainda não há registros. Eles aparecem aqui sozinhos assim que a equipe enviar pelo app.'
+    : 'Nenhum registro encontrado com esse filtro. Limpe os filtros acima para ver tudo.';
   $('vazio').classList.toggle('oculta', lista.length > 0);
   lista.forEach(function(r){
     const linha = el('button','linha' + (est.vistos[r.protocolo] ? '' : ' nova'));
@@ -420,17 +486,24 @@ function abreDetalhe(r){
     urlFoto(caminho).then(function(u){
       const la = el('a'); la.href = u; la.target='_blank'; la.rel='noopener'; la.title='Abrir a foto '+(i+1)+' em tamanho real';
       const im = document.createElement('img'); im.src = u; im.alt = 'Foto '+(i+1)+' de '+r.protocolo; im.loading='lazy';
+      im.onerror = function(){ delete est.fotoUrl[caminho]; la.replaceWith(el('span','pend','Foto expirou. Feche e abra a ficha de novo.')); };
       la.appendChild(im); fx.replaceChild(la, slot);
     }).catch(function(){ slot.textContent = 'Foto indisponível'; });
   });
   if((r.fotos||[]).length) d.appendChild(fx);
   const ac = el('div','det-acoes');
-  const am = el('a'); am.className='btn claro'; am.textContent='📍 Abrir no Google Maps';
-  am.href='https://maps.google.com/?q='+r.lat+','+r.lon; am.target='_blank'; am.rel='noopener';
-  ac.appendChild(am);
+  if(r.lat != null && r.lon != null){
+    const am = el('a'); am.className='btn claro'; am.textContent='📍 Abrir no Google Maps';
+    am.href='https://maps.google.com/?q='+r.lat+','+r.lon; am.target='_blank'; am.rel='noopener';
+    ac.appendChild(am);
+  } else {
+    ac.appendChild(el('span','ajuda','Este registro veio sem ponto no mapa.'));
+  }
   d.appendChild(ac);
   $('fundo').classList.remove('oculta');
+  d.setAttribute('tabindex','-1'); d.focus();
   est.vistos[r.protocolo] = true;
+  salvaVistos();
 }
 function fechaDetalhe(){ $('fundo').classList.add('oculta'); }
 document.addEventListener('keydown', function(e){ if(e.key==='Escape') fechaDetalhe(); });
@@ -439,6 +512,8 @@ function mostraVista(v){
   est.vista = v;
   $('abaLista').classList.toggle('ativa', v==='lista');
   $('abaMapa').classList.toggle('ativa', v==='mapa');
+  $('abaLista').setAttribute('aria-selected', v==='lista');
+  $('abaMapa').setAttribute('aria-selected', v==='mapa');
   $('vistaLista').classList.toggle('oculta', v!=='lista');
   $('vistaMapa').classList.toggle('oculta', v!=='mapa');
   if(v==='mapa'){
@@ -477,6 +552,8 @@ function montaMapaPainel(){
 }
 function renderMapa(){
   if(!est.mapa) return;
+  // não redesenha com um balão aberto (o refresh de 30 s fecharia no meio da leitura)
+  if(est.mapa._popup && est.mapa._popup.isOpen && est.mapa._popup.isOpen()) return;
   est.camadaPontos.clearLayers();
   filtrados().forEach(function(r){
     if(r.lat == null || r.lon == null) return;
@@ -499,32 +576,45 @@ function enquadra(){
   if(pts.length) est.mapa.fitBounds(pts, {padding:[45,45], maxZoom: 16});
 }
 function urlFoto(caminho){
-  if(est.fotoUrl[caminho]) return est.fotoUrl[caminho];
-  est.fotoUrl[caminho] = chama('/storage/v1/object/sign/fotos/'+caminho, {
+  // só aceita caminhos no formato que o app grava (dado do banco é dado não confiável)
+  if(typeof caminho !== 'string' || !/^(PV|PI)-\d{4}-[A-Za-z0-9]{4,14}\/foto[1-4](-[a-z0-9]{1,14})?\.jpg$/.test(caminho))
+    return Promise.reject('caminho de foto inválido');
+  const c = est.fotoUrl[caminho];
+  if(c && Date.now() < c.vence) return c.p; // link assinado vale 12 h; renova sozinho antes de vencer
+  const seguro = caminho.split('/').map(encodeURIComponent).join('/');
+  const p = chama('/storage/v1/object/sign/fotos/'+seguro, {
     method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ expiresIn: 43200 })
   }).then(r => r.ok ? r.json() : Promise.reject('sign HTTP '+r.status))
     .then(function(d){ return URL_BASE + '/storage/v1' + d.signedURL; });
-  est.fotoUrl[caminho].catch(function(){ delete est.fotoUrl[caminho]; });
-  return est.fotoUrl[caminho];
+  est.fotoUrl[caminho] = { p: p, vence: Date.now() + (43200 - 600) * 1000 };
+  p.catch(function(){ delete est.fotoUrl[caminho]; });
+  return p;
 }
 
 /* ===== Planilha (CSV que o Excel abre direto) ===== */
 function exportaPlanilha(){
   const lista = filtrados();
-  function cel(v){ return '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"'; }
+  const filtrando = $('fTipo').value || $('fDe').value || $('fAte').value || $('fBusca').value.trim();
+  if(!lista.length){ alert('Nada para exportar com o filtro atual. Limpe os filtros e tente de novo.'); return; }
+  if(filtrando && !confirm('Você vai exportar só os '+lista.length+' registros do filtro atual. Continuar?')) return;
+  function cel(v){
+    let s = String(v == null ? '' : v);
+    if(/^[=+\-@\t\r]/.test(s)) s = "'" + s; // impede fórmula embutida de rodar no Excel
+    return '"' + s.replace(/"/g,'""') + '"';
+  }
   const linhas = [['Protocolo','Tipo','Nome','Cliente','Data e hora','Local','Nº referência','Observação','Qtd fotos','Link do mapa','Latitude','Longitude'].map(cel).join(';')];
   lista.forEach(function(r){
     linhas.push([
       r.protocolo, r.tipo, r.nome, r.empresa, fmtData(r.registrado_em),
       r.endereco || '', r.num_referencia || '', r.observacao || '',
       (r.fotos&&r.fotos.length)||0,
-      'https://maps.google.com/?q='+r.lat+','+r.lon,
+      (r.lat != null && r.lon != null) ? 'https://maps.google.com/?q='+r.lat+','+r.lon : '',
       r.lat, r.lon
     ].map(cel).join(';'));
   });
   const csv = '﻿' + linhas.join('\r\n');
   const ag = new Date();
-  const nome = 'fator-k-registros_' + ag.getFullYear() + p2(ag.getMonth()+1) + p2(ag.getDate()) + '_' + p2(ag.getHours()) + p2(ag.getMinutes()) + '.csv';
+  const nome = 'fator-k-registros_' + ag.getFullYear() + p2(ag.getMonth()+1) + p2(ag.getDate()) + '_' + p2(ag.getHours()) + p2(ag.getMinutes()) + (filtrando ? '-filtrado' : '') + '.csv';
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
   a.download = nome;
