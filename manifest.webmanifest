@@ -1,7 +1,7 @@
 {
-  "name": "Monitoramento Fator K - ETE Suzano",
+  "name": "Fator K - ETE Suzano",
   "short_name": "Fator K",
-  "description": "Monitoramento Fator K - registro de PV e PI em campo",
+  "description": "Fator K ETE Suzano - registro de PV e PI em campo",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
