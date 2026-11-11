@@ -54,7 +54,7 @@
   .aviso-rede{background:#FFF4D6;border:1px solid #E5C877;color:#7a5a00;border-radius:12px;padding:10px 14px;font-size:14px;display:none}
   /* lista */
   .tabela{background:var(--branco);border:1px solid var(--fio);border-radius:14px;overflow:hidden}
-  .cabecalho,.linha{display:grid;grid-template-columns:150px 52px 118px minmax(150px,1fr) minmax(190px,1.5fr) 64px 20px;gap:12px;align-items:center;padding:11px 16px}
+  .cabecalho,.linha{display:grid;grid-template-columns:148px 50px 116px minmax(130px,1fr) minmax(110px,.8fr) minmax(170px,1.4fr) 58px 18px;gap:12px;align-items:center;padding:11px 16px}
   .cabecalho{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--sutil);border-bottom:1px solid var(--fio);background:var(--papel)}
   .linha{width:100%;text-align:left;border:0;border-bottom:1px solid #EDF0F2;background:var(--branco);font:inherit;color:inherit;cursor:pointer}
   .linha:last-child{border-bottom:0}
@@ -67,9 +67,9 @@
   .chip.PV{background:#E8ECF0;color:#3D4954}
   .chip.PI{background:#DDF0FB;color:#005B8E}
   .c-quando{color:var(--sutil);font-size:13px;font-variant-numeric:tabular-nums}
-  .c-quem,.c-local{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
-  .c-quem b{font-weight:600}
-  .c-quem .cli{color:var(--sutil)}
+  .c-quem,.c-cliente,.c-local{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+  .c-quem{font-weight:600}
+  .c-cliente{font-weight:600;color:var(--acento)}
   .c-fotos{color:var(--sutil);font-size:13px;text-align:center;white-space:nowrap}
   .c-seta{color:#B9C4CB;font-size:17px;text-align:right}
   .rotulo-m{display:none}
@@ -94,12 +94,13 @@
   /* celular: cada linha vira um bloco */
   @media (max-width:860px){
     .cabecalho{display:none}
-    .cabecalho,.linha{grid-template-columns:auto auto 1fr auto;grid-template-areas:"proto tipo . fotos" "quem quem quem quem" "local local local local" "quando quando quando quando"}
+    .cabecalho,.linha{grid-template-columns:auto auto 1fr auto;grid-template-areas:"proto tipo . fotos" "cliente cliente cliente cliente" "quem quem quem quem" "local local local local" "quando quando quando quando"}
     .linha{gap:3px 10px;padding:13px 16px}
     .c-proto{grid-area:proto}
     .c-tipo{grid-area:tipo;padding:3px 9px}
     .c-quando{grid-area:quando}
-    .c-quem{grid-area:quem;white-space:normal}
+    .c-quem{grid-area:quem;white-space:normal;font-weight:400}
+    .c-cliente{grid-area:cliente;white-space:normal}
     .c-local{grid-area:local;white-space:normal;color:var(--muted)}
     .c-fotos{grid-area:fotos}
     .c-seta{display:none}
@@ -168,7 +169,7 @@
   </div>
   <div class="aviso-rede" id="avisoRede">⚠️ Sem conexão com o banco agora. Tentando de novo em instantes…</div>
   <div class="tabela">
-    <div class="cabecalho"><span>Protocolo</span><span>Tipo</span><span>Data e hora</span><span>Quem registrou</span><span>Local</span><span style="text-align:center">Fotos</span><span></span></div>
+    <div class="cabecalho"><span>Protocolo</span><span>Tipo</span><span>Data e hora</span><span>Quem registrou</span><span>Cliente</span><span>Local</span><span style="text-align:center">Fotos</span><span></span></div>
     <div id="lista"></div>
   </div>
   <div class="vazio oculta" id="vazio">Nenhum registro encontrado com esse filtro.</div>
@@ -178,7 +179,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.0 · 10/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.1 · 10/11/2026</footer>
 
 <script>
 "use strict";
@@ -318,8 +319,8 @@ function render(){
     linha.appendChild(cp);
     linha.appendChild(el('span','chip c-tipo '+r.tipo, r.tipo));
     linha.appendChild(el('span','c-quando', fmtData(r.registrado_em)));
-    const q = el('span','c-quem'); q.appendChild(el('b',null,r.nome)); q.appendChild(el('span','cli',' · '+r.empresa));
-    linha.appendChild(q);
+    linha.appendChild(el('span','c-quem', r.nome));
+    linha.appendChild(el('span','c-cliente', r.empresa));
     linha.appendChild(el('span','c-local', localDe(r)));
     linha.appendChild(el('span','c-fotos', '📷 ' + ((r.fotos&&r.fotos.length)||0)));
     linha.appendChild(el('span','c-seta','›'));
