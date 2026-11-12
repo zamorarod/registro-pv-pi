@@ -78,14 +78,15 @@
   .pop-ficha .btn{padding:8px 12px;font-size:13.5px;margin-top:8px}
   /* lista */
   .tabela{background:var(--branco);border:1px solid var(--fio);border-radius:14px;overflow:hidden}
-  .cabecalho,.linha{display:grid;grid-template-columns:148px 50px 116px minmax(130px,1fr) minmax(110px,.8fr) minmax(170px,1.4fr) 58px 18px;gap:12px;align-items:center;padding:11px 16px}
+  .cabecalho,.linha{display:grid;grid-template-columns:168px 50px 116px minmax(128px,1fr) minmax(110px,.8fr) minmax(160px,1.4fr) 58px 18px;gap:12px;align-items:center;padding:11px 16px}
   .cabecalho{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--sutil);border-bottom:1px solid var(--fio);background:var(--papel)}
   .linha{width:100%;text-align:left;border:0;border-bottom:1px solid #EDF0F2;background:var(--branco);font:inherit;color:inherit;cursor:pointer}
   .linha:last-child{border-bottom:0}
   .linha:hover{background:#F6FAFC}
   .linha:focus-visible{outline:2px solid var(--acento);outline-offset:-2px}
   .linha.nova{background:#F0F9FF}
-  .c-proto{font:700 14px/1.2 var(--display);letter-spacing:.02em;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0;white-space:nowrap}
+  .c-proto{font:700 13px/1.2 var(--display);letter-spacing:.01em;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0;white-space:nowrap}
+  .proto-tx{max-width:100%;overflow:hidden;text-overflow:ellipsis}
   .selo-novo{background:var(--acento);color:#fff;font-size:11px;font-weight:700;border-radius:6px;padding:1.5px 7px;letter-spacing:.05em}
   .linha.nova{box-shadow:inset 3px 0 0 var(--sabesp)}
   .chip{font-weight:700;font-size:12px;border-radius:7px;padding:3px 0;text-align:center}
@@ -243,7 +244,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.7 · 10/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.8 · 12/11/2026</footer>
 
 <script>
 "use strict";
@@ -448,7 +449,10 @@ function render(){
     const linha = el('button','linha' + (est.vistos[r.protocolo] ? '' : ' nova'));
     linha.type = 'button';
     linha.onclick = function(){ abreDetalhe(r); };
-    const cp = el('span','c-proto', r.protocolo);
+    const cp = el('span','c-proto');
+    const tx = el('span','proto-tx', r.protocolo);
+    tx.title = r.protocolo;
+    cp.appendChild(tx);
     if(!est.vistos[r.protocolo]) cp.appendChild(el('span','selo-novo','NOVO'));
     linha.appendChild(cp);
     linha.appendChild(el('span','chip c-tipo '+r.tipo, r.tipo));
