@@ -417,7 +417,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.26 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.27 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -1018,19 +1018,20 @@ let PINO_PV = null, PINO_PI = null;
 function montaMapaPainel(){
   if(est.mapa || typeof L === 'undefined') return;
   PINO_PV = pinoDe('PV'); PINO_PI = pinoDe('PI');
+  // maxNativeZoom = ate onde existem imagens; acima disso o Leaflet estica o ultimo nivel (zoom 22 = bem perto)
   const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: 'Mapa © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    maxZoom: 22, maxNativeZoom: 19, attribution: 'Mapa © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   });
   const esriRuas = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19, attribution: 'Mapa © Esri'
+    maxZoom: 22, maxNativeZoom: 19, attribution: 'Mapa © Esri'
   });
   const satelite = L.layerGroup([
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19, attribution: 'Imagens © Esri'
+      maxZoom: 22, maxNativeZoom: 19, attribution: 'Imagens © Esri'
     }),
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 22, maxNativeZoom: 19 })
   ]);
-  est.mapa = L.map('mapaP', {zoomControl:true, layers:[osm]}).setView([-23.54,-46.4], 11);
+  est.mapa = L.map('mapaP', {zoomControl:true, maxZoom: 22, layers:[osm]}).setView([-23.54,-46.4], 11);
   L.control.layers({ 'Ruas (OpenStreetMap)': osm, 'Ruas (Esri)': esriRuas, 'Satélite': satelite }, null, {collapsed:false}).addTo(est.mapa);
   est.camadaPontos = L.layerGroup().addTo(est.mapa);
   est.camadaRota = L.layerGroup().addTo(est.mapa);
