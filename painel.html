@@ -258,6 +258,18 @@
       </select>
     </div>
     <div class="campo">
+      <label for="fCliente">Cliente</label>
+      <select id="fCliente" onchange="render()">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label for="fQuem">Quem registrou</label>
+      <select id="fQuem" onchange="render()">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div class="campo">
       <label for="fDe">De</label>
       <input type="date" id="fDe" onchange="render()">
     </div>
@@ -308,7 +320,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.13 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.14 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -420,6 +432,7 @@ function carrega(manual){
       $('avisoRede').style.display = 'none';
       $('avisoLimite').style.display = (dados.length === 1000) ? 'block' : 'none';
       est.regs = dados;
+      montaOpcoesFiltro();
       const ag = new Date();
       function p(n){ return String(n).padStart(2,'0'); }
       $('horaTxt').textContent = 'Atualizado às ' + p(ag.getHours()) + ':' + p(ag.getMinutes()) + ':' + p(ag.getSeconds());
@@ -471,15 +484,40 @@ function filtrados(){
   const de = $('fDe').value, ate = $('fAte').value;
   const busca = $('fBusca').value.trim().toUpperCase();
   const sit = $('fSituacao').value;
+  const cli = $('fCliente').value;
+  const quem = $('fQuem').value;
   return est.regs.filter(function(r){
     if(tipo && r.tipo !== tipo) return false;
     if(sit && (r.situacao || 'Registrado') !== sit) return false;
+    if(cli && r.empresa !== cli) return false;
+    if(quem && r.nome !== quem) return false;
     const dl = dataLocal(r.registrado_em);
     if(de && dl < de) return false;
     if(ate && dl > ate) return false;
     if(!busca) return true;
     return [r.protocolo, r.nome, r.empresa, r.endereco, r.num_referencia, r.observacao]
       .some(function(v){ return v && String(v).toUpperCase().indexOf(busca) >= 0; });
+  });
+}
+
+// preenche Cliente e Quem registrou com os valores que existem no banco, sem perder a escolha atual
+function montaOpcoesFiltro(){
+  [['fCliente','empresa'],['fQuem','nome']].forEach(function(par){
+    const sel = $(par[0]);
+    const atual = sel.value;
+    const valores = {};
+    est.regs.forEach(function(r){ const v = r[par[1]]; if(v) valores[v] = true; });
+    const lista = Object.keys(valores).sort(function(a,b){ return a.localeCompare(b,'pt-BR'); });
+    sel.innerHTML = '';
+    const tod = document.createElement('option');
+    tod.value = ''; tod.textContent = 'Todos';
+    sel.appendChild(tod);
+    lista.forEach(function(v){
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+    if(atual && valores[atual]) sel.value = atual;
   });
 }
 
@@ -495,7 +533,7 @@ function render(){
   $('kHoje').textContent = hoje;
   $('kFotos').textContent = fotos;
   $('kTrat').textContent = est.regs.filter(function(r){ return r.situacao === 'Tratado'; }).length;
-  const filtrando = $('fTipo').value || $('fSituacao').value || $('fDe').value || $('fAte').value || $('fBusca').value.trim();
+  const filtrando = $('fTipo').value || $('fSituacao').value || $('fCliente').value || $('fQuem').value || $('fDe').value || $('fAte').value || $('fBusca').value.trim();
   $('kFiltro').textContent = lista.length;
   $('cardFiltro').classList.toggle('oculta', !filtrando);
   if(est.vista === 'mapa') renderMapa();
