@@ -417,7 +417,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.27 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.28 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -428,7 +428,7 @@ const INTERVALO_MS = 30000;
 const est = { token:null, renovador:null, expira:0, papel:'consulta', usuario:'', regs:[], totalConsulta:null, fotoUrl:Object.create(null), timer:null, buscando:false,
               mapa:null, camadaPontos:null, camadaRota:null, vista:'lista', popupAberto:null,
               roteiro:Object.create(null), ordemRota:[],
-              origem:null, volta:null, origemNome:null, voltaNome:null, modoDefinir:null, ordemManual:null,
+              origem:null, volta:null, origemNome:null, voltaNome:null, modoDefinir:null, ordemManual:null, dica:null,
               selCliente:Object.create(null), selQuem:Object.create(null) };
 const SITUACOES = ['Registrado','Encaminhado','Tratado'];
 function sitDe(r){ return SITUACOES.indexOf(r.situacao) >= 0 ? r.situacao : 'Registrado'; }
@@ -1100,6 +1100,7 @@ function roteiroLimpar(){
   est.origem = null; est.volta = null;
   est.origemNome = null; est.voltaNome = null;
   est.modoDefinir = null;
+  est.dica = null;
   $('endOrigem').value = ''; $('endVolta').value = '';
   sugFecha('origem'); sugFecha('volta');
   renderMapa();
@@ -1188,6 +1189,7 @@ function removePonto(qual){
   desenhaRoteiro();
 }
 function poeDica(txt){
+  est.dica = { txt: txt, em: Date.now() }; // o redesenho de 30 s preserva avisos recentes
   $('dicaPonto').textContent = txt;
   $('linhaDica').classList.remove('oculta');
 }
@@ -1222,6 +1224,7 @@ function sugFecha(qual){
 function sugSome(qual){ setTimeout(function(){ sugFecha(qual); }, 150); }
 function sugDigita(qual){
   const s = sug[qual];
+  s.sel = -1; // o texto mudou: a marcacao da lista anterior nao vale mais
   if(s.timer) clearTimeout(s.timer);
   s.timer = setTimeout(function(){ sugConsulta(qual); }, 300);
 }
@@ -1266,11 +1269,12 @@ function rotuloSug(p){
   const base = p.name || p.street || '';
   // so acrescenta o numero se ele ja nao estiver escrito no nome (senao sai "Rua Mandu, 123, 123")
   const jaTem = p.housenumber && base.split(/[\s,]+/).indexOf(String(p.housenumber)) >= 0;
-  const l1 = (p.housenumber && !jaTem) ? base + ', ' + p.housenumber : base;
+  const l1 = (p.housenumber && !jaTem && base) ? base + ', ' + p.housenumber : base;
   const l2 = [p.district, p.city, p.state].filter(Boolean).join(' · ');
   return { l1: l1 || l2, l2: l1 ? l2 : '' };
 }
 function sugMostra(qual, feats){
+  if(document.activeElement !== campoEnd(qual)){ sugFecha(qual); return; } // a pessoa ja saiu do campo: nada de caixa orfa
   const s = sug[qual], g = caixaSug(qual);
   s.itens = feats; s.sel = -1;
   g.innerHTML = '';
@@ -1312,17 +1316,20 @@ function refinaNumero(qual, p, numero, prov){
   const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&accept-language=pt-BR&q=' + encodeURIComponent(q);
   comTimeout(url, {}, 15000).then(function(r){ return r.json(); }).then(function(l){
     if(!l || !l.length) return;
+    const la = parseFloat(l[0].lat), lo = parseFloat(l[0].lon);
+    if(!isFinite(la) || !isFinite(lo)) return;
     const atual = est[qual];
     if(!atual || atual.lat !== prov[1] || atual.lon !== prov[0]) return; // a pessoa ja mexeu no ponto
-    est[qual] = { lat: parseFloat(l[0].lat), lon: parseFloat(l[0].lon) };
+    est[qual] = { lat: la, lon: lo };
+    if(qual === 'origem' && est.voltaNome === 'Mesma da saída') est.volta = { lat: la, lon: lo }; // a volta acompanha
     desenhaRoteiro();
-    if(est.mapa) est.mapa.panTo([est[qual].lat, est[qual].lon]);
+    if(est.mapa) est.mapa.panTo([la, lo]);
   }).catch(function(){});
 }
 function sugTecla(qual, ev){
   const s = sug[qual], aberta = !caixaSug(qual).classList.contains('oculta') && s.itens.length > 0;
   if(ev.key === 'ArrowDown' && aberta){ ev.preventDefault(); s.sel = (s.sel + 1) % s.itens.length; sugMarca(qual); }
-  else if(ev.key === 'ArrowUp' && aberta){ ev.preventDefault(); s.sel = (s.sel - 1 + s.itens.length) % s.itens.length; sugMarca(qual); }
+  else if(ev.key === 'ArrowUp' && aberta){ ev.preventDefault(); s.sel = s.sel < 0 ? s.itens.length - 1 : (s.sel - 1 + s.itens.length) % s.itens.length; sugMarca(qual); }
   else if(ev.key === 'Escape'){ sugFecha(qual); }
   else if(ev.key === 'Enter'){
     ev.preventDefault();
@@ -1331,6 +1338,10 @@ function sugTecla(qual, ev){
   }
 }
 function pontoAchado(qual, lat, lon, nome){
+  if(!isFinite(lat) || !isFinite(lon)){ // resposta corrompida nao pode envenenar o mapa
+    poeDica('Endereço não encontrado. Confira o nome da rua e a cidade, ou use "Marcar no mapa".');
+    return;
+  }
   est[qual] = { lat: lat, lon: lon };
   est[qual + 'Nome'] = nome || 'Endereço encontrado';
   est.modoDefinir = null;
@@ -1341,6 +1352,7 @@ function pontoAchado(qual, lat, lon, nome){
 function buscaEndereco(qual){
   const inp = $(qual === 'origem' ? 'endOrigem' : 'endVolta');
   const btn = $(qual === 'origem' ? 'btnBuscaOrigem' : 'btnBuscaVolta');
+  if(btn.disabled) return; // ja tem uma busca em andamento (Enter repetido nao dispara outra)
   const txt = inp.value.trim();
   if(!txt){
     inp.focus();
@@ -1354,6 +1366,7 @@ function buscaEndereco(qual){
     url += '&viewbox=' + b.getWest() + ',' + b.getNorth() + ',' + b.getEast() + ',' + b.getSouth();
   }
   comTimeout(url, {}, 15000).then(function(r){ return r.json(); }).then(function(lista){
+    if(inp.value.trim() !== txt) return; // a pessoa ja mudou o texto; essa resposta ficou velha
     if(lista && lista.length){
       const nome = String(lista[0].display_name || '').split(',').slice(0, 3).join(',');
       pontoAchado(qual, parseFloat(lista[0].lat), parseFloat(lista[0].lon), nome);
@@ -1401,9 +1414,10 @@ function atualizaBotoesPonto(){
     st.title = st.textContent;
     st.classList.toggle('ok', !!p);
   });
+  const recente = (est.dica && Date.now() - est.dica.em < 15000) ? est.dica.txt : '';
   $('dicaPonto').textContent = est.modoDefinir
     ? 'Toque no mapa no lugar ' + (est.modoDefinir === 'origem' ? 'de onde a equipe sai.' : 'para onde a equipe volta.')
-    : '';
+    : recente;
   $('btnRecalc').classList.toggle('oculta', !est.ordemManual);
   $('linhaDica').classList.toggle('oculta', !est.ordemManual && !$('dicaPonto').textContent);
 }
@@ -1465,7 +1479,7 @@ function montaRotLista(){
 }
 let ordemCache = { chave:null, protos:null };
 function desenhaRoteiro(){
-  if(!est.mapa) return;
+  if(!est.mapa){ atualizaBotoesPonto(); return; } // sem mapa (CDN fora), os cards continuam refletindo o estado
   est.camadaRota.clearLayers();
   const atuais = Object.create(null);
   est.regs.forEach(function(r){ atuais[r.protocolo] = true; });
@@ -1540,7 +1554,7 @@ function desenhaBandeiras(){
       const ll = m.getLatLng();
       est[par[0]] = { lat: ll.lat, lon: ll.lng };
       est[par[0] + 'Nome'] = 'Ajustada no mapa';
-      desenhaRoteiro();
+      setTimeout(desenhaRoteiro, 0); // nunca redesenhar DENTRO do evento de arraste (reentrancia duplicava camadas)
     });
     m.addTo(est.camadaRota);
   });
