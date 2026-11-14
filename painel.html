@@ -327,7 +327,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.15 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.16 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -925,7 +925,7 @@ function enquadra(){
 }
 function urlFoto(caminho){
   // só aceita caminhos no formato que o app grava (dado do banco é dado não confiável)
-  if(typeof caminho !== 'string' || !/^(PV|PI)-\d{4}-[A-Za-z0-9]{4,14}\/foto[1-4](-[a-z0-9]{1,14})?\.jpg$/.test(caminho))
+  if(typeof caminho !== 'string' || !/^(PV|PI)-\d{4}-(\d{2}-)?[A-Za-z0-9]{4,14}\/foto[1-4](-[a-z0-9]{1,14})?\.jpg$/.test(caminho))
     return Promise.reject('caminho de foto inválido');
   const c = est.fotoUrl[caminho];
   if(c && Date.now() < c.vence) return c.p; // link assinado vale 12 h; renova sozinho antes de vencer
