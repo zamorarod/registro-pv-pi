@@ -111,6 +111,9 @@
   .sit-btn.atual.Encaminhado{background:#FFF1D6;color:#8A5A00;border-color:#C9720E}
   .sit-btn.atual.Tratado{background:#E2F6E9;color:#1B7A3D;border-color:#1B7A3D}
   .det-sit-msg{font-size:13px;color:var(--erro);font-weight:600}
+  .det-hist{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--sutil);border-top:1px solid var(--fio);padding-top:10px}
+  .det-hist .rot{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .det-hist b{color:var(--muted);font-weight:600}
   /* roteiro */
   .bar-roteiro{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--branco);border:1px solid var(--fio);border-radius:14px;padding:10px 14px;margin-bottom:10px}
   .rot-tit{font:700 14px var(--display)}
@@ -363,7 +366,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.20 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.21 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -737,6 +740,23 @@ function abreDetalhe(r){
     stB.appendChild(el('span','det-sit-rot','Só o gestor altera a situação.'));
   }
   d.appendChild(stB);
+  // historico da tratativa: quem mudou a situacao e quando (gravado pelo banco)
+  const hx = el('div','det-hist oculta');
+  d.appendChild(hx);
+  chama('/rest/v1/tratativas?protocolo=eq.' + encodeURIComponent(r.protocolo) + '&select=situacao,por,em&order=em.asc')
+    .then(function(r2){ return r2.ok ? r2.json() : []; })
+    .then(function(rows){
+      if(!rows.length) return;
+      hx.appendChild(el('span','rot','Histórico da tratativa'));
+      rows.forEach(function(t){
+        const li = el('span');
+        li.appendChild(el('b', null, SITUACOES.indexOf(t.situacao) >= 0 ? t.situacao : 'Alteração'));
+        li.appendChild(document.createTextNode(' em ' + fmtData(t.em) + ' por ' + (t.por || 'sistema')));
+        hx.appendChild(li);
+      });
+      hx.classList.remove('oculta');
+    })
+    .catch(function(){});
   const fx = el('div','det-fotos');
   (r.fotos||[]).forEach(function(caminho, i){
     const slot = el('span','pend','Carregando foto '+(i+1)+'…');
