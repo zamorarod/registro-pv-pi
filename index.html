@@ -173,7 +173,7 @@
   </div>
 </main>
 
-<footer>Fator K - ETE Suzano<br>versão 1.5 · 14/11/2026</footer>
+<footer>Fator K - ETE Suzano<br>versão 1.6 · 14/11/2026</footer>
 <div id="visor" class="oculta" onclick="this.classList.add('oculta')">
   <img alt="foto ampliada">
   <button class="fechar">Fechar</button>
@@ -195,7 +195,8 @@ const est = {
   fotos:[null,null,null,null],      // {blob, url} JPEG carimbado
   fotoIds:[null,null,null,null],    // identidade de cada captura (reenvio não troca foto)
   lat:null, lon:null, gpsOk:false, precisao:null, endereco:'',
-  mapa:null, pino:null, slotAtual:0, enviando:false, protoAtual:null
+  mapa:null, pino:null, slotAtual:0, enviando:false, protoAtual:null,
+  insertTentado:false // a gravação deste protocolo já foi tentada alguma vez? (decide o que um 409 significa)
 };
 
 function $(id){ return document.getElementById(id); }
@@ -233,6 +234,7 @@ function iniciar(){
 /* ===== Tela 2 ===== */
 function escolher(tipo){
   est.protoAtual = null; // registro novo (ou tipo trocado) ganha protocolo novo
+  est.insertTentado = false;
   est.tipo = tipo;
   $('chipTipo').textContent = tipo === 'PV' ? 'PV · Poço de visita' : 'PI · Poço de inspeção';
   $('tipoTxt').textContent = tipo;
@@ -397,9 +399,16 @@ function buscaEndereco(lat, lon){
 
 /* ===== Envio ===== */
 function protocolo(){
-  // horário + aleatório em base 36: praticamente impossível dois aparelhos colidirem
-  const n = (Date.now().toString(36) + Math.floor(Math.random()*1296).toString(36).padStart(2,'0')).toUpperCase();
-  return est.tipo + '-' + new Date().getFullYear() + '-' + n;
+  // TIPO-ANO-MES-XXXX: 4 caracteres sorteados, sem letras que confundem (O/0, I/1).
+  // Se outro aparelho já tiver usado o mesmo código, o envio percebe e sorteia outro.
+  const ALFA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const sorte = new Uint32Array(4);
+  if(window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(sorte);
+  else for(let i = 0; i < 4; i++) sorte[i] = Math.floor(Math.random() * 4294967296);
+  let n = '';
+  for(let i = 0; i < 4; i++) n += ALFA[sorte[i] % 32];
+  const ag = new Date();
+  return est.tipo + '-' + ag.getFullYear() + '-' + String(ag.getMonth() + 1).padStart(2, '0') + '-' + n;
 }
 function comTimeout(url, opts, ms){
   const ctl = new AbortController();
@@ -453,7 +462,7 @@ function envioDemo(proto){
   console.log('[DEMO] registro', proto, est);
   return new Promise(function(res){ setTimeout(res, 900); });
 }
-function envioSupabase(proto, pacote, btn){
+function envioSupabase(proto, pacote, btn, tentativa){
   // 1) sobe as fotos no bucket; 2) grava a linha na tabela com os caminhos.
   // Cada captura tem um caminho próprio (fotoIds): o reenvio reaproveita a foto certa (409 = já subiu),
   // e uma foto trocada ganha caminho novo. A gravação ignora protocolo repetido (reenvio não duplica).
@@ -480,13 +489,25 @@ function envioSupabase(proto, pacote, btn){
   return fila.then(function(){
     if(btn) btn.textContent = 'Gravando o registro…';
     pacote.fotos = caminhos;
+    const jaTentou = est.insertTentado; // antes DESTA tentativa
+    est.insertTentado = true;
     return comTimeout(SUPABASE_URL + '/rest/v1/' + TABELA, {
       method:'POST',
       headers:{ 'Authorization':'Bearer '+SUPABASE_KEY, 'apikey':SUPABASE_KEY, 'Content-Type':'application/json', 'Prefer':'return=minimal' },
       body: JSON.stringify(pacote)
     }, 30000).then(function(r){
-      // 409 = este protocolo já foi gravado numa tentativa anterior deste mesmo registro: concluído
-      if(!r.ok && r.status !== 409) throw new Error('tabela: HTTP '+r.status);
+      if(r.ok) return;
+      if(r.status === 409){
+        // Se já houve tentativa de gravar este protocolo, o 409 diz que ela funcionou: concluído.
+        if(jaTentou) return;
+        // Nunca tentamos gravar: outro aparelho usou o mesmo código por coincidência. Sorteia outro.
+        if((tentativa || 0) >= 2) throw new Error('tabela: codigo repetido 3 vezes');
+        est.protoAtual = protocolo();
+        est.insertTentado = false;
+        pacote.protocolo = est.protoAtual;
+        return envioSupabase(est.protoAtual, pacote, btn, (tentativa || 0) + 1);
+      }
+      throw new Error('tabela: HTTP '+r.status);
     });
   });
 }
@@ -514,6 +535,7 @@ function mostraRecibo(proto){
 function novoRegistro(){
   est.tipo = '';
   est.protoAtual = null;
+  est.insertTentado = false;
   geoSeq++; // resposta atrasada de endereço do registro anterior é descartada
   est.fotos.forEach(function(f){ if(f) URL.revokeObjectURL(f.url); });
   est.fotos = [null,null,null,null];
