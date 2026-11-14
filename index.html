@@ -90,6 +90,9 @@
   .aviso-demo{background:var(--alerta-bg);border:1px solid var(--alerta-fio);color:var(--alerta);border-radius:12px;padding:12px 15px;font-size:14px;text-align:center}
   .leaflet-bar a,.leaflet-touch .leaflet-bar a{width:40px;height:40px;line-height:40px;font-size:20px}
   .nota{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;color:var(--sutil);padding:2px 4px}
+  .fila-bar{background:var(--alerta-bg);border-bottom:1px solid var(--alerta-fio);color:var(--alerta);padding:9px 20px;font-size:14px;font-weight:600;text-align:center}
+  .fila-bar.ok{background:#E6F3E9;border-color:var(--ok);color:var(--ok)}
+  .recibo .check.pend{background:var(--alerta-bg);color:var(--alerta);font-size:42px}
   footer{padding:0 20px 18px;text-align:center;font-size:12.5px;color:var(--sutil)}
   .oculta{display:none!important}
 </style>
@@ -100,6 +103,7 @@
   <h1>Fator K - ETE Suzano</h1>
   <div class="sub">Registro rápido <span class="junto">em campo</span></div>
 </header>
+<div id="filaBar" class="fila-bar oculta"></div>
 
 <!-- TELA 1: identificação -->
 <main id="t1">
@@ -180,7 +184,7 @@
   </div>
 </main>
 
-<footer>Fator K - ETE Suzano<br>versão 1.7 · 14/11/2026</footer>
+<footer>Fator K - ETE Suzano<br>versão 1.8 · 14/11/2026</footer>
 <div id="visor" class="oculta" onclick="this.classList.add('oculta')">
   <img alt="foto ampliada">
   <div style="display:flex;gap:12px">
@@ -438,7 +442,7 @@ function buscaEndereco(lat, lon){
 }
 
 /* ===== Envio ===== */
-function protocolo(){
+function protocolo(tipo){
   // TIPO-ANO-MES-XXXX: 4 caracteres sorteados, sem letras que confundem (O/0, I/1).
   // Se outro aparelho já tiver usado o mesmo código, o envio percebe e sorteia outro.
   const ALFA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -448,7 +452,7 @@ function protocolo(){
   let n = '';
   for(let i = 0; i < 4; i++) n += ALFA[sorte[i] % 32];
   const ag = new Date();
-  return est.tipo + '-' + ag.getFullYear() + '-' + String(ag.getMonth() + 1).padStart(2, '0') + '-' + n;
+  return tipo + '-' + ag.getFullYear() + '-' + String(ag.getMonth() + 1).padStart(2, '0') + '-' + n;
 }
 function comTimeout(url, opts, ms){
   const ctl = new AbortController();
@@ -471,10 +475,9 @@ function enviar(){
   $('erroEnvio').style.display = 'none';
 
   // o protocolo não muda entre tentativas do MESMO registro (reenvio não duplica foto)
-  if(!est.protoAtual) est.protoAtual = protocolo();
-  const proto = est.protoAtual;
+  if(!est.protoAtual) est.protoAtual = protocolo(est.tipo);
   const pacote = {
-    protocolo: proto,
+    protocolo: est.protoAtual,
     tipo: est.tipo,
     nome: est.nome,
     empresa: est.empresa,
@@ -483,34 +486,53 @@ function enviar(){
     num_referencia: $('numRef').value.trim() || null,
     observacao: $('obs').value.trim() || null
   };
+  const fotosEnvio = est.fotos.map(function(f){ return f ? f.blob : null; });
+  const idsEnvio = est.fotoIds.slice();
 
-  const envio = DEMO ? envioDemo(proto) : envioSupabase(proto, pacote, btn);
-  envio.then(function(){
-    mostraRecibo(pacote); // pacote.protocolo é o que de fato foi gravado (pode ter sido sorteado de novo)
-  }).catch(function(e){
-    const falhaDeRede = (e && (e.name === 'AbortError' || e instanceof TypeError));
-    $('erroEnvio').textContent = falhaDeRede
-      ? 'Não foi possível enviar. Verifique a internet e toque de novo em "Enviar registro". Suas fotos continuam nesta tela.'
-      : 'O envio foi recusado pelo sistema. Toque de novo em "Enviar registro"; se continuar, avise o responsável. Suas fotos continuam nesta tela.';
-    $('erroEnvio').style.display = 'block';
-    console.error(e);
-  }).finally(function(){
+  function liberaTela(){
     est.enviando = false;
     btn.disabled = false; btn.textContent = 'Enviar registro';
     $('numRef').disabled = false; $('obs').disabled = false;
+  }
+
+  // sem internet: guarda no aparelho e envia sozinho quando o sinal voltar
+  if(!DEMO && navigator.onLine === false){
+    poeNaFila(pacote, fotosEnvio, idsEnvio);
+    liberaTela();
+    mostraRecibo(pacote, true);
+    return;
+  }
+
+  const envio = DEMO ? envioDemo(pacote.protocolo) : envioRegistro(pacote, fotosEnvio, idsEnvio, btn, 0);
+  envio.then(function(){
+    liberaTela();
+    mostraRecibo(pacote, false); // pacote.protocolo é o que de fato foi gravado (pode ter sido sorteado de novo)
+  }).catch(function(e){
+    liberaTela();
+    const falhaDeRede = (e && (e.name === 'AbortError' || e instanceof TypeError));
+    if(falhaDeRede){
+      // a conexão caiu no meio: vai para a fila e o app tenta sozinho depois
+      poeNaFila(pacote, fotosEnvio, idsEnvio);
+      mostraRecibo(pacote, true);
+      return;
+    }
+    $('erroEnvio').textContent = 'O envio foi recusado pelo sistema. Toque de novo em "Enviar registro"; se continuar, avise o responsável. Suas fotos continuam nesta tela.';
+    $('erroEnvio').style.display = 'block';
+    console.error(e);
   });
 }
 function envioDemo(proto){
   console.log('[DEMO] registro', proto, est);
   return new Promise(function(res){ setTimeout(res, 900); });
 }
-function envioSupabase(proto, pacote, btn, tentativa){
+function envioRegistro(pacote, fotos, fotoIds, btn, tentativa){
   // 1) sobe as fotos no bucket; 2) grava a linha na tabela com os caminhos.
   // Cada captura tem um caminho próprio (fotoIds): o reenvio reaproveita a foto certa (409 = já subiu),
   // e uma foto trocada ganha caminho novo. A gravação ignora protocolo repetido (reenvio não duplica).
+  // Recebe tudo por parâmetro (não lê a tela): serve para o envio na hora e para a fila offline.
   const aEnviar = [];
-  est.fotos.forEach(function(f, i){ if(f) aEnviar.push({ f: f, i: i }); });
-  const caminhos = aEnviar.map(function(x){ return proto + '/foto' + (x.i+1) + '-' + est.fotoIds[x.i] + '.jpg'; });
+  fotos.forEach(function(f, i){ if(f) aEnviar.push({ blob: f, i: i }); });
+  const caminhos = aEnviar.map(function(x){ return pacote.protocolo + '/foto' + (x.i+1) + '-' + fotoIds[x.i] + '.jpg'; });
   let fila = Promise.resolve();
   aEnviar.forEach(function(x, k){
     fila = fila.then(function(){
@@ -518,7 +540,7 @@ function envioSupabase(proto, pacote, btn, tentativa){
       return comTimeout(SUPABASE_URL + '/storage/v1/object/' + BUCKET + '/' + caminhos[k], {
         method:'POST',
         headers:{ 'Authorization':'Bearer '+SUPABASE_KEY, 'apikey':SUPABASE_KEY, 'Content-Type':'image/jpeg' },
-        body: x.f.blob
+        body: x.blob
       }, 30000).then(function(r){
         if(r.ok || r.status === 409) return; // 409 = esta mesma captura já subiu antes
         return r.json().catch(function(){ return {}; }).then(function(d){
@@ -545,20 +567,95 @@ function envioSupabase(proto, pacote, btn, tentativa){
       if(res === 'gravado' || res === 'ja_gravado') return;
       if(res === 'colisao'){
         if((tentativa || 0) >= 2) throw new Error('tabela: codigo repetido 3 vezes');
-        est.protoAtual = protocolo();
-        pacote.protocolo = est.protoAtual;
-        return envioSupabase(est.protoAtual, pacote, btn, (tentativa || 0) + 1);
+        pacote.protocolo = protocolo(pacote.tipo);
+        if(est.protoAtual && est.tipo === pacote.tipo) est.protoAtual = pacote.protocolo;
+        return envioRegistro(pacote, fotos, fotoIds, btn, (tentativa || 0) + 1);
       }
       throw new Error('tabela: resposta inesperada');
     });
   });
 }
+
+/* ===== Fila offline: registros guardados no aparelho ate ter sinal ===== */
+let enviandoFila = false;
+function filaStore(modo, fn){
+  return abreDB().then(function(db){
+    if(!db) return null;
+    try{ return fn(db.transaction('fila', modo).objectStore('fila')); }catch(e){ return null; }
+  });
+}
+function poeNaFila(pacote, fotos, fotoIds){
+  filaStore('readwrite', function(st){
+    st.put({ pacote: pacote, fotos: fotos, fotoIds: fotoIds, quando: Date.now() }, pacote.protocolo);
+  }).then(function(){ contaFila(); });
+}
+function contaFila(){
+  filaStore('readonly', function(st){
+    const rq = st.count();
+    rq.onsuccess = function(){ mostraFilaBar(rq.result); };
+  });
+}
+function mostraFilaBar(n){
+  const b = $('filaBar');
+  if(n > 0){
+    b.classList.remove('oculta', 'ok');
+    b.textContent = '⏳ ' + n + (n === 1 ? ' registro aguardando sinal para enviar' : ' registros aguardando sinal para enviar');
+  } else if(!b.classList.contains('oculta') && !b.classList.contains('ok')){
+    b.classList.add('ok');
+    b.textContent = '✅ Registros pendentes enviados';
+    setTimeout(function(){ b.classList.add('oculta'); }, 4000);
+  }
+}
+function processaFila(){
+  if(enviandoFila || DEMO || navigator.onLine === false) return;
+  abreDB().then(function(db){
+    if(!db) return;
+    let rq;
+    try{ rq = db.transaction('fila').objectStore('fila').getAllKeys(); }catch(e){ return; }
+    rq.onsuccess = function(){
+      const chaves = rq.result || [];
+      if(!chaves.length) return;
+      enviandoFila = true;
+      let corrente = Promise.resolve();
+      chaves.forEach(function(chave){
+        corrente = corrente.then(function(){
+          return filaStore('readonly', function(st){ return st.get(chave); }).then(function(g){
+            return new Promise(function(res, rej){
+              if(!g) return res();
+              g.onsuccess = function(){ res(g.result); };
+              g.onerror = function(){ res(null); };
+            });
+          }).then(function(item){
+            if(!item) return;
+            return envioRegistro(item.pacote, item.fotos, item.fotoIds, null, 0).then(function(){
+              return filaStore('readwrite', function(st){ st.delete(chave); });
+            });
+          });
+        });
+      });
+      corrente.then(function(){ contaFila(); })
+        .catch(function(e){ console.error('fila: tentará de novo', e); })
+        .finally(function(){ enviandoFila = false; contaFila(); });
+    };
+  });
+}
+window.addEventListener('online', processaFila);
+setInterval(processaFila, 45000);
 function escapaHtml(t){
   return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
                   .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
-function mostraRecibo(pacote){
+function mostraRecibo(pacote, pendente){
   $('protoTxt').textContent = pacote.protocolo;
+  const check = document.querySelector('#t4 .check');
+  check.textContent = pendente ? '⏳' : '✓';
+  check.classList.toggle('pend', !!pendente);
+  document.querySelector('#t4 h2').innerHTML = pendente
+    ? 'Registro guardado <span class="junto">no aparelho</span>'
+    : 'Registro <span class="junto">encaminhado</span>';
+  document.querySelector('#t4 .recibo > .ajuda').textContent = pendente
+    ? 'Sem internet agora. O app envia sozinho quando o sinal voltar; pode continuar registrando.'
+    : 'Obrigado! As fotos e o local foram enviados.';
   const qtdFotos = est.fotos.filter(Boolean).length;
   $('reciboDet').innerHTML =
     '<div><span>Tipo</span><b>'+(est.tipo==='PV'?'PV · Poço de visita':'PI · Poço de inspeção')+'</b></div>' +
@@ -610,8 +707,12 @@ function abreDB(){
     if(dbRasc) return res(dbRasc);
     if(!window.indexedDB) return res(null);
     try{
-      const req = indexedDB.open('fatork', 1);
-      req.onupgradeneeded = function(){ req.result.createObjectStore('rascunho'); };
+      const req = indexedDB.open('fatork', 2);
+      req.onupgradeneeded = function(){
+        const db = req.result;
+        if(!db.objectStoreNames.contains('rascunho')) db.createObjectStore('rascunho');
+        if(!db.objectStoreNames.contains('fila')) db.createObjectStore('fila');
+      };
       req.onsuccess = function(){ dbRasc = req.result; res(dbRasc); };
       req.onerror = function(){ res(null); };
     }catch(e){ res(null); }
@@ -683,6 +784,8 @@ $('obs').addEventListener('input', salvaRascunho);
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(function(){});
 }
+contaFila();
+processaFila();
 </script>
 </body>
 </html>
