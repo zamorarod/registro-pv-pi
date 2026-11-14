@@ -64,6 +64,15 @@
   .filtros select{padding:11px 10px;border:1.5px solid var(--fio);border-radius:10px;background:var(--branco)}
   .filtros input[type=search]{min-width:230px}
   .filtros .busca{flex:1}
+  /* filtro de varias escolhas (cliente, quem registrou) */
+  .msel{position:relative}
+  .msel-btn{padding:11px 12px;border:1.5px solid var(--fio);border-radius:10px;background:var(--branco);font:inherit;color:inherit;cursor:pointer;text-align:left;min-width:135px;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .msel-btn.ativo{border-color:var(--acento);color:var(--acento);font-weight:600}
+  .msel-pop{position:absolute;top:calc(100% + 4px);left:0;z-index:40;background:var(--branco);border:1px solid var(--fio);border-radius:12px;box-shadow:0 10px 30px rgba(11,31,51,.18);min-width:235px;max-height:270px;overflow:auto;padding:6px}
+  .msel-item{display:flex;align-items:center;gap:9px;width:100%;border:0;background:none;text-align:left;padding:8px 10px;border-radius:8px;font:inherit;font-size:14px;color:inherit;cursor:pointer}
+  .msel-item:hover{background:#F2F7FB}
+  .msel-item input{width:16px;height:16px;flex:0 0 auto;accent-color:var(--acento);pointer-events:none}
+  .msel-limpa{font-weight:600;color:var(--acento);border-bottom:1px solid var(--fio);border-radius:8px 8px 0 0;margin-bottom:4px}
   .aviso-rede{background:#FFF4D6;border:1px solid #E5C877;color:#7a5a00;border-radius:12px;padding:10px 14px;font-size:14px;display:none}
   .abas{display:flex;gap:0;border:1.5px solid var(--fio);border-radius:11px;overflow:hidden;align-self:flex-start;background:var(--branco)}
   .abas button{border:0;background:var(--branco);color:var(--muted);font:600 14px var(--texto);padding:10px 20px;cursor:pointer}
@@ -257,17 +266,15 @@
         <option>Tratado</option>
       </select>
     </div>
-    <div class="campo">
-      <label for="fCliente">Cliente</label>
-      <select id="fCliente" onchange="render()">
-        <option value="">Todos</option>
-      </select>
+    <div class="campo msel">
+      <label>Cliente</label>
+      <button type="button" class="msel-btn" id="btnCliente" onclick="abreMsel('Cliente')">Todos ▾</button>
+      <div class="msel-pop oculta" id="popCliente"></div>
     </div>
-    <div class="campo">
-      <label for="fQuem">Quem registrou</label>
-      <select id="fQuem" onchange="render()">
-        <option value="">Todos</option>
-      </select>
+    <div class="campo msel">
+      <label>Quem registrou</label>
+      <button type="button" class="msel-btn" id="btnQuem" onclick="abreMsel('Quem')">Todos ▾</button>
+      <div class="msel-pop oculta" id="popQuem"></div>
     </div>
     <div class="campo">
       <label for="fDe">De</label>
@@ -320,7 +327,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.14 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.15 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -330,7 +337,8 @@ const INTERVALO_MS = 30000;
 
 const est = { token:null, renovador:null, expira:0, regs:[], fotoUrl:Object.create(null), timer:null, buscando:false,
               mapa:null, camadaPontos:null, camadaRota:null, vista:'lista', mapaEnquadrado:false,
-              roteiro:Object.create(null), ordemRota:[] };
+              roteiro:Object.create(null), ordemRota:[],
+              selCliente:Object.create(null), selQuem:Object.create(null) };
 
 function $(id){ return document.getElementById(id); }
 function comTimeout(url, opts, ms){
@@ -484,13 +492,13 @@ function filtrados(){
   const de = $('fDe').value, ate = $('fAte').value;
   const busca = $('fBusca').value.trim().toUpperCase();
   const sit = $('fSituacao').value;
-  const cli = $('fCliente').value;
-  const quem = $('fQuem').value;
+  const nCli = Object.keys(est.selCliente).length;
+  const nQuem = Object.keys(est.selQuem).length;
   return est.regs.filter(function(r){
     if(tipo && r.tipo !== tipo) return false;
     if(sit && (r.situacao || 'Registrado') !== sit) return false;
-    if(cli && r.empresa !== cli) return false;
-    if(quem && r.nome !== quem) return false;
+    if(nCli && !est.selCliente[r.empresa]) return false;
+    if(nQuem && !est.selQuem[r.nome]) return false;
     const dl = dataLocal(r.registrado_em);
     if(de && dl < de) return false;
     if(ate && dl > ate) return false;
@@ -500,26 +508,61 @@ function filtrados(){
   });
 }
 
-// preenche Cliente e Quem registrou com os valores que existem no banco, sem perder a escolha atual
+// Cliente e Quem registrou: caixas onde da para marcar VARIAS opcoes ao mesmo tempo.
+// As listas vem do que existe no banco e a escolha atual e preservada a cada atualizacao.
 function montaOpcoesFiltro(){
-  [['fCliente','empresa'],['fQuem','nome']].forEach(function(par){
-    const sel = $(par[0]);
-    const atual = sel.value;
+  [['Cliente','empresa','selCliente'],['Quem','nome','selQuem']].forEach(function(par){
+    const pop = $('pop' + par[0]);
+    const escolha = est[par[2]];
     const valores = {};
     est.regs.forEach(function(r){ const v = r[par[1]]; if(v) valores[v] = true; });
+    Object.keys(escolha).forEach(function(v){ if(!valores[v]) delete escolha[v]; });
     const lista = Object.keys(valores).sort(function(a,b){ return a.localeCompare(b,'pt-BR'); });
-    sel.innerHTML = '';
-    const tod = document.createElement('option');
-    tod.value = ''; tod.textContent = 'Todos';
-    sel.appendChild(tod);
+    pop.innerHTML = '';
+    const limpa = el('button','msel-item msel-limpa','Todos (limpar seleção)');
+    limpa.type = 'button';
+    limpa.onclick = function(){ est[par[2]] = Object.create(null); montaOpcoesFiltro(); render(); };
+    pop.appendChild(limpa);
     lista.forEach(function(v){
-      const o = document.createElement('option');
-      o.value = v; o.textContent = v;
-      sel.appendChild(o);
+      const it = el('button','msel-item');
+      it.type = 'button';
+      const cx = document.createElement('input');
+      cx.type = 'checkbox'; cx.checked = !!escolha[v]; cx.tabIndex = -1;
+      it.appendChild(cx);
+      it.appendChild(el('span', null, v));
+      it.onclick = function(){
+        if(est[par[2]][v]) delete est[par[2]][v]; else est[par[2]][v] = true;
+        cx.checked = !!est[par[2]][v];
+        rotuloMsel();
+        render();
+      };
+      pop.appendChild(it);
     });
-    if(atual && valores[atual]) sel.value = atual;
+  });
+  rotuloMsel();
+}
+function rotuloMsel(){
+  [['Cliente','selCliente'],['Quem','selQuem']].forEach(function(par){
+    const marcados = Object.keys(est[par[1]]);
+    const b = $('btn' + par[0]);
+    b.textContent = (marcados.length === 0 ? 'Todos' : marcados.length === 1 ? marcados[0] : marcados.length + ' selecionados') + ' ▾';
+    b.classList.toggle('ativo', marcados.length > 0);
   });
 }
+function abreMsel(qual){
+  const pop = $('pop' + qual);
+  const aberto = !pop.classList.contains('oculta');
+  $('popCliente').classList.add('oculta');
+  $('popQuem').classList.add('oculta');
+  if(!aberto) pop.classList.remove('oculta');
+}
+document.addEventListener('click', function(e){
+  if(!e.target.closest || !e.target.closest('.msel')){
+    const pc = $('popCliente'), pq = $('popQuem');
+    if(pc) pc.classList.add('oculta');
+    if(pq) pq.classList.add('oculta');
+  }
+});
 
 /* ===== Lista ===== */
 function render(){
@@ -533,7 +576,7 @@ function render(){
   $('kHoje').textContent = hoje;
   $('kFotos').textContent = fotos;
   $('kTrat').textContent = est.regs.filter(function(r){ return r.situacao === 'Tratado'; }).length;
-  const filtrando = $('fTipo').value || $('fSituacao').value || $('fCliente').value || $('fQuem').value || $('fDe').value || $('fAte').value || $('fBusca').value.trim();
+  const filtrando = $('fTipo').value || $('fSituacao').value || Object.keys(est.selCliente).length || Object.keys(est.selQuem).length || $('fDe').value || $('fAte').value || $('fBusca').value.trim();
   $('kFiltro').textContent = lista.length;
   $('cardFiltro').classList.toggle('oculta', !filtrando);
   if(est.vista === 'mapa') renderMapa();
