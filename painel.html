@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0093DD">
 <meta name="robots" content="noindex">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com https://dqacgeqkhsqymhlxszct.supabase.co https://cdnjs.cloudflare.com; connect-src https://dqacgeqkhsqymhlxszct.supabase.co; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com https://dqacgeqkhsqymhlxszct.supabase.co https://cdnjs.cloudflare.com; connect-src https://dqacgeqkhsqymhlxszct.supabase.co https://nominatim.openstreetmap.org; object-src 'none'; base-uri 'none'">
 <title>Painel - Monitoramento Fator K - ETE Suzano</title>
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">
@@ -139,7 +139,10 @@
   .rot-vazio{padding:14px;font-size:13.5px;color:var(--sutil)}
   .btn.mini{padding:7px 11px;font-size:12.5px}
   .rot-sub{font-size:13px;color:var(--sutil);font-weight:600}
-  .rot-extra{padding:8px 14px;background:var(--papel);box-shadow:none}
+  .rot-extra{padding:10px 14px;background:var(--papel);box-shadow:none;flex-direction:column;align-items:stretch;gap:8px}
+  .rot-ponto{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .rot-ponto .rot-sub{min-width:62px}
+  .end-busca{flex:1;min-width:170px;padding:9px 11px;border:1.5px solid var(--borda-campo);border-radius:10px;background:var(--branco);font:inherit;font-size:13.5px}
   .rot-mv{display:flex;gap:6px;margin-left:auto;flex:0 0 auto}
   .mv-btn{border:1px solid var(--fio);background:var(--branco);border-radius:8px;width:38px;height:38px;font-size:14px;cursor:pointer;color:var(--muted);line-height:1;padding:0;position:relative}
   .mv-btn::before{content:"";position:absolute;inset:-4px}
@@ -346,12 +349,23 @@
       <button type="button" class="btn claro oculta" id="rotLimpar" onclick="roteiroLimpar()">Limpar</button>
     </div>
     <div class="bar-roteiro rot-extra">
-      <span class="rot-sub">🚩 Saída:</span>
-      <button type="button" class="btn claro mini" id="btnOrigem" onclick="marcarPonto('origem')">Marcar no mapa</button>
-      <span class="rot-sub">🏁 Volta:</span>
-      <button type="button" class="btn claro mini" id="btnVolta" onclick="marcarPonto('volta')">Marcar no mapa</button>
-      <button type="button" class="btn claro mini oculta" id="btnRecalc" onclick="recalculaOrdem()">↻ Voltar à melhor ordem</button>
-      <span class="rot-sub" id="dicaPonto"></span>
+      <div class="rot-ponto">
+        <span class="rot-sub">🚩 Saída:</span>
+        <input type="text" id="endOrigem" class="end-busca" placeholder="Rua, número e cidade. Ex.: Rua Oscar Mosconi, 150, Suzano" autocomplete="off" onkeydown="if(event.key==='Enter')buscaEndereco('origem')">
+        <button type="button" class="btn claro mini" id="btnBuscaOrigem" onclick="buscaEndereco('origem')">🔎 Buscar</button>
+        <button type="button" class="btn claro mini" id="btnOrigem" onclick="marcarPonto('origem')">Marcar no mapa</button>
+      </div>
+      <div class="rot-ponto">
+        <span class="rot-sub">🏁 Volta:</span>
+        <input type="text" id="endVolta" class="end-busca" placeholder="Rua, número e cidade (ou use o botão ao lado)" autocomplete="off" onkeydown="if(event.key==='Enter')buscaEndereco('volta')">
+        <button type="button" class="btn claro mini" id="btnBuscaVolta" onclick="buscaEndereco('volta')">🔎 Buscar</button>
+        <button type="button" class="btn claro mini" id="btnVoltaIgual" onclick="voltaIgualSaida()">Mesma da saída</button>
+        <button type="button" class="btn claro mini" id="btnVolta" onclick="marcarPonto('volta')">Marcar no mapa</button>
+      </div>
+      <div class="rot-ponto">
+        <button type="button" class="btn claro mini oculta" id="btnRecalc" onclick="recalculaOrdem()">↻ Voltar à melhor ordem</button>
+        <span class="rot-sub" id="dicaPonto"></span>
+      </div>
     </div>
     <div class="rot-links oculta" id="rotLinks">
       <span>Este navegador não deixou copiar sozinho. Toque no texto abaixo e copie com Ctrl+C (ou segure e Copiar no celular):</span>
@@ -373,7 +387,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.22 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.23 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -1128,6 +1142,51 @@ function marcarPonto(qual){
   if(est[qual]){ est[qual] = null; est.modoDefinir = null; }
   else est.modoDefinir = (est.modoDefinir === qual) ? null : qual;
   desenhaRoteiro();
+}
+function pontoAchado(qual, lat, lon, nome){
+  est[qual] = { lat: lat, lon: lon };
+  est.modoDefinir = null;
+  desenhaRoteiro();
+  if(est.mapa) est.mapa.panTo([lat, lon]);
+  $('dicaPonto').textContent = (qual === 'origem' ? '🚩 Saída: ' : '🏁 Volta: ') + (nome || 'ponto marcado') + ' · arraste a bandeira no mapa se precisar ajustar.';
+}
+function buscaEndereco(qual){
+  const inp = $(qual === 'origem' ? 'endOrigem' : 'endVolta');
+  const btn = $(qual === 'origem' ? 'btnBuscaOrigem' : 'btnBuscaVolta');
+  const txt = inp.value.trim();
+  if(!txt){
+    inp.focus();
+    $('dicaPonto').textContent = 'Digite o endereço antes de buscar. Ex.: Rua Oscar Mosconi, 150, Suzano';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Buscando…';
+  let url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&accept-language=pt-BR&q=' + encodeURIComponent(txt);
+  if(est.mapa){
+    const b = est.mapa.getBounds(); // da preferencia a resultados perto da regiao que esta na tela
+    url += '&viewbox=' + b.getWest() + ',' + b.getNorth() + ',' + b.getEast() + ',' + b.getSouth();
+  }
+  comTimeout(url, {}, 15000).then(function(r){ return r.json(); }).then(function(lista){
+    if(lista && lista.length){
+      const nome = String(lista[0].display_name || '').split(',').slice(0, 3).join(',');
+      pontoAchado(qual, parseFloat(lista[0].lat), parseFloat(lista[0].lon), nome);
+    } else {
+      $('dicaPonto').textContent = 'Endereço não encontrado. Confira o nome da rua e a cidade, ou use "Marcar no mapa".';
+    }
+  }).catch(function(){
+    $('dicaPonto').textContent = 'Não deu para buscar o endereço agora. Tente de novo ou use "Marcar no mapa".';
+  }).finally(function(){
+    btn.disabled = false; btn.textContent = '🔎 Buscar';
+  });
+}
+function voltaIgualSaida(){
+  if(!est.origem){
+    $('dicaPonto').textContent = 'Primeiro marque a saída (busque o endereço ou toque no mapa).';
+    return;
+  }
+  est.volta = { lat: est.origem.lat, lon: est.origem.lon };
+  est.modoDefinir = null;
+  desenhaRoteiro();
+  $('dicaPonto').textContent = '🏁 Volta marcada no mesmo lugar da saída.';
 }
 function recalculaOrdem(){
   est.ordemManual = null;
