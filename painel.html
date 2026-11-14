@@ -139,10 +139,18 @@
   .rot-vazio{padding:14px;font-size:13.5px;color:var(--sutil)}
   .btn.mini{padding:7px 11px;font-size:12.5px}
   .rot-sub{font-size:13px;color:var(--sutil);font-weight:600}
-  .rot-extra{padding:10px 14px;background:var(--papel);box-shadow:none;flex-direction:column;align-items:stretch;gap:8px}
-  .rot-ponto{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .rot-ponto .rot-sub{min-width:62px}
-  .end-busca{flex:1;min-width:170px;padding:9px 11px;border:1.5px solid var(--borda-campo);border-radius:10px;background:var(--branco);font:inherit;font-size:13.5px}
+  .rot-extra{padding:12px 14px;background:var(--papel);box-shadow:none;flex-direction:column;align-items:stretch;gap:10px}
+  .rot-pontos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .ponto-card{display:flex;flex-direction:column;gap:9px;background:var(--branco);border:1px solid var(--fio);border-radius:12px;padding:12px}
+  .ponto-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+  .ponto-rotulo{font:700 13px var(--display);letter-spacing:.02em;flex:0 0 auto}
+  .ponto-status{font-size:12.5px;color:var(--sutil);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+  .ponto-status.ok{color:var(--ok);font-weight:600}
+  .end-busca{width:100%;padding:10px 12px;border:1.5px solid var(--borda-campo);border-radius:10px;background:var(--branco);font:inherit;font-size:13.5px}
+  .ponto-acoes{display:flex;gap:8px;flex-wrap:wrap}
+  .ponto-acoes .btn{flex:1 1 auto;min-width:118px}
+  .btn.claro.ativo{background:var(--acento);color:#fff}
+  .rot-dica-linha{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .rot-mv{display:flex;gap:6px;margin-left:auto;flex:0 0 auto}
   .mv-btn{border:1px solid var(--fio);background:var(--branco);border-radius:8px;width:38px;height:38px;font-size:14px;cursor:pointer;color:var(--muted);line-height:1;padding:0;position:relative}
   .mv-btn::before{content:"";position:absolute;inset:-4px}
@@ -153,6 +161,7 @@
   @media (max-width:860px){
     .rot-area{grid-template-columns:1fr}
     .rot-painel{max-height:220px;order:2}
+    .rot-pontos{grid-template-columns:1fr}
   }
   @media (max-height:800px){
     #mapaP,.rot-painel{height:min(56vh,480px);max-height:min(56vh,480px)}
@@ -349,20 +358,28 @@
       <button type="button" class="btn claro oculta" id="rotLimpar" onclick="roteiroLimpar()">Limpar</button>
     </div>
     <div class="bar-roteiro rot-extra">
-      <div class="rot-ponto">
-        <span class="rot-sub">🚩 Saída:</span>
-        <input type="text" id="endOrigem" class="end-busca" placeholder="Rua, número e cidade. Ex.: Rua Oscar Mosconi, 150, Suzano" autocomplete="off" onkeydown="if(event.key==='Enter')buscaEndereco('origem')">
-        <button type="button" class="btn claro mini" id="btnBuscaOrigem" onclick="buscaEndereco('origem')">🔎 Buscar</button>
-        <button type="button" class="btn claro mini" id="btnOrigem" onclick="marcarPonto('origem')">Marcar no mapa</button>
+      <div class="rot-pontos">
+        <div class="ponto-card">
+          <div class="ponto-cab"><span class="ponto-rotulo">🚩 Saída</span><span class="ponto-status" id="stOrigem">Não definida</span></div>
+          <input type="text" id="endOrigem" class="end-busca" placeholder="Rua, número e cidade" autocomplete="off" onkeydown="if(event.key==='Enter')buscaEndereco('origem')">
+          <div class="ponto-acoes">
+            <button type="button" class="btn claro mini" id="btnBuscaOrigem" onclick="buscaEndereco('origem')">🔎 Buscar endereço</button>
+            <button type="button" class="btn claro mini" id="btnOrigem" onclick="marcarPonto('origem')">📍 Marcar no mapa</button>
+            <button type="button" class="btn claro mini oculta" id="btnTiraOrigem" onclick="removePonto('origem')">✕ Remover</button>
+          </div>
+        </div>
+        <div class="ponto-card">
+          <div class="ponto-cab"><span class="ponto-rotulo">🏁 Volta</span><span class="ponto-status" id="stVolta">Não definida</span></div>
+          <input type="text" id="endVolta" class="end-busca" placeholder="Rua, número e cidade" autocomplete="off" onkeydown="if(event.key==='Enter')buscaEndereco('volta')">
+          <div class="ponto-acoes">
+            <button type="button" class="btn claro mini" id="btnBuscaVolta" onclick="buscaEndereco('volta')">🔎 Buscar endereço</button>
+            <button type="button" class="btn claro mini" id="btnVoltaIgual" onclick="voltaIgualSaida()">Mesma da saída</button>
+            <button type="button" class="btn claro mini" id="btnVolta" onclick="marcarPonto('volta')">📍 Marcar no mapa</button>
+            <button type="button" class="btn claro mini oculta" id="btnTiraVolta" onclick="removePonto('volta')">✕ Remover</button>
+          </div>
+        </div>
       </div>
-      <div class="rot-ponto">
-        <span class="rot-sub">🏁 Volta:</span>
-        <input type="text" id="endVolta" class="end-busca" placeholder="Rua, número e cidade (ou use o botão ao lado)" autocomplete="off" onkeydown="if(event.key==='Enter')buscaEndereco('volta')">
-        <button type="button" class="btn claro mini" id="btnBuscaVolta" onclick="buscaEndereco('volta')">🔎 Buscar</button>
-        <button type="button" class="btn claro mini" id="btnVoltaIgual" onclick="voltaIgualSaida()">Mesma da saída</button>
-        <button type="button" class="btn claro mini" id="btnVolta" onclick="marcarPonto('volta')">Marcar no mapa</button>
-      </div>
-      <div class="rot-ponto">
+      <div class="rot-dica-linha oculta" id="linhaDica">
         <button type="button" class="btn claro mini oculta" id="btnRecalc" onclick="recalculaOrdem()">↻ Voltar à melhor ordem</button>
         <span class="rot-sub" id="dicaPonto"></span>
       </div>
@@ -387,7 +404,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.23 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.24 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -398,7 +415,7 @@ const INTERVALO_MS = 30000;
 const est = { token:null, renovador:null, expira:0, papel:'consulta', usuario:'', regs:[], totalConsulta:null, fotoUrl:Object.create(null), timer:null, buscando:false,
               mapa:null, camadaPontos:null, camadaRota:null, vista:'lista', popupAberto:null,
               roteiro:Object.create(null), ordemRota:[],
-              origem:null, volta:null, modoDefinir:null, ordemManual:null,
+              origem:null, volta:null, origemNome:null, voltaNome:null, modoDefinir:null, ordemManual:null,
               selCliente:Object.create(null), selQuem:Object.create(null) };
 const SITUACOES = ['Registrado','Encaminhado','Tratado'];
 function sitDe(r){ return SITUACOES.indexOf(r.situacao) >= 0 ? r.situacao : 'Registrado'; }
@@ -1007,6 +1024,7 @@ function montaMapaPainel(){
   est.mapa.on('click', function(e){
     if(!est.modoDefinir) return;
     est[est.modoDefinir] = { lat: e.latlng.lat, lon: e.latlng.lng };
+    est[est.modoDefinir + 'Nome'] = 'Marcada no mapa';
     est.modoDefinir = null;
     desenhaRoteiro();
   });
@@ -1065,6 +1083,10 @@ function roteiroTodos(){
 function roteiroLimpar(){
   est.roteiro = Object.create(null);
   est.ordemManual = null;
+  est.origem = null; est.volta = null;
+  est.origemNome = null; est.voltaNome = null;
+  est.modoDefinir = null;
+  $('endOrigem').value = ''; $('endVolta').value = '';
   renderMapa();
 }
 function distKm(a, b){
@@ -1139,16 +1161,27 @@ function ordemRoteiro(pts){
   return melhor;
 }
 function marcarPonto(qual){
-  if(est[qual]){ est[qual] = null; est.modoDefinir = null; }
-  else est.modoDefinir = (est.modoDefinir === qual) ? null : qual;
+  est.modoDefinir = (est.modoDefinir === qual) ? null : qual;
   desenhaRoteiro();
+}
+function removePonto(qual){
+  est[qual] = null;
+  est[qual + 'Nome'] = null;
+  if(est.modoDefinir === qual) est.modoDefinir = null;
+  $(qual === 'origem' ? 'endOrigem' : 'endVolta').value = '';
+  desenhaRoteiro();
+}
+function poeDica(txt){
+  $('dicaPonto').textContent = txt;
+  $('linhaDica').classList.remove('oculta');
 }
 function pontoAchado(qual, lat, lon, nome){
   est[qual] = { lat: lat, lon: lon };
+  est[qual + 'Nome'] = nome || 'Endereço encontrado';
   est.modoDefinir = null;
   desenhaRoteiro();
   if(est.mapa) est.mapa.panTo([lat, lon]);
-  $('dicaPonto').textContent = (qual === 'origem' ? '🚩 Saída: ' : '🏁 Volta: ') + (nome || 'ponto marcado') + ' · arraste a bandeira no mapa se precisar ajustar.';
+  poeDica('Endereço marcado. Arraste a bandeira no mapa se precisar ajustar o ponto.');
 }
 function buscaEndereco(qual){
   const inp = $(qual === 'origem' ? 'endOrigem' : 'endVolta');
@@ -1156,10 +1189,10 @@ function buscaEndereco(qual){
   const txt = inp.value.trim();
   if(!txt){
     inp.focus();
-    $('dicaPonto').textContent = 'Digite o endereço antes de buscar. Ex.: Rua Oscar Mosconi, 150, Suzano';
+    poeDica('Digite o endereço no campo antes de buscar. Ex.: Rua Oscar Mosconi, 150, São Paulo');
     return;
   }
-  btn.disabled = true; btn.textContent = 'Buscando…';
+  btn.disabled = true; btn.textContent = '⏳ Buscando…';
   let url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&accept-language=pt-BR&q=' + encodeURIComponent(txt);
   if(est.mapa){
     const b = est.mapa.getBounds(); // da preferencia a resultados perto da regiao que esta na tela
@@ -1170,23 +1203,24 @@ function buscaEndereco(qual){
       const nome = String(lista[0].display_name || '').split(',').slice(0, 3).join(',');
       pontoAchado(qual, parseFloat(lista[0].lat), parseFloat(lista[0].lon), nome);
     } else {
-      $('dicaPonto').textContent = 'Endereço não encontrado. Confira o nome da rua e a cidade, ou use "Marcar no mapa".';
+      poeDica('Endereço não encontrado. Confira o nome da rua e a cidade, ou use "Marcar no mapa".');
     }
   }).catch(function(){
-    $('dicaPonto').textContent = 'Não deu para buscar o endereço agora. Tente de novo ou use "Marcar no mapa".';
+    poeDica('Não deu para buscar o endereço agora. Tente de novo ou use "Marcar no mapa".');
   }).finally(function(){
-    btn.disabled = false; btn.textContent = '🔎 Buscar';
+    btn.disabled = false; btn.textContent = '🔎 Buscar endereço';
   });
 }
 function voltaIgualSaida(){
   if(!est.origem){
-    $('dicaPonto').textContent = 'Primeiro marque a saída (busque o endereço ou toque no mapa).';
+    poeDica('Primeiro marque a saída (busque o endereço ou toque no mapa).');
     return;
   }
   est.volta = { lat: est.origem.lat, lon: est.origem.lon };
+  est.voltaNome = 'Mesma da saída';
   est.modoDefinir = null;
+  $('endVolta').value = '';
   desenhaRoteiro();
-  $('dicaPonto').textContent = '🏁 Volta marcada no mesmo lugar da saída.';
 }
 function recalculaOrdem(){
   est.ordemManual = null;
@@ -1201,17 +1235,22 @@ function moveNaOrdem(proto, delta){
   desenhaRoteiro();
 }
 function atualizaBotoesPonto(){
-  [['origem','btnOrigem','a saída'],['volta','btnVolta','a volta']].forEach(function(par){
+  [['origem','btnOrigem','stOrigem','btnTiraOrigem'],['volta','btnVolta','stVolta','btnTiraVolta']].forEach(function(par){
+    const p = est[par[0]], escolhendo = est.modoDefinir === par[0];
     const b = $(par[1]);
-    if(est[par[0]]) b.textContent = '✕ Remover';
-    else if(est.modoDefinir === par[0]) b.textContent = 'Toque no mapa…';
-    else b.textContent = 'Marcar no mapa';
-    b.classList.toggle('ativo', !!est[par[0]] || est.modoDefinir === par[0]);
+    b.textContent = escolhendo ? 'Toque no mapa…' : '📍 Marcar no mapa';
+    b.classList.toggle('ativo', escolhendo);
+    $(par[3]).classList.toggle('oculta', !p);
+    const st = $(par[2]);
+    st.textContent = p ? (est[par[0] + 'Nome'] || 'Marcada no mapa') : (escolhendo ? 'Escolhendo no mapa…' : 'Não definida');
+    st.title = st.textContent;
+    st.classList.toggle('ok', !!p);
   });
   $('dicaPonto').textContent = est.modoDefinir
     ? 'Toque no mapa no lugar ' + (est.modoDefinir === 'origem' ? 'de onde a equipe sai.' : 'para onde a equipe volta.')
     : '';
   $('btnRecalc').classList.toggle('oculta', !est.ordemManual);
+  $('linhaDica').classList.toggle('oculta', !est.ordemManual && !$('dicaPonto').textContent);
 }
 function montaRotLista(){
   const g = $('rotLista'); g.innerHTML = '';
@@ -1282,7 +1321,7 @@ function desenhaRoteiro(){
   const tem = pts.length > 0;
   $('rotAbrir').classList.toggle('oculta', !tem);
   $('rotCopiar').classList.toggle('oculta', !tem);
-  $('rotLimpar').classList.toggle('oculta', !tem);
+  $('rotLimpar').classList.toggle('oculta', !tem && !est.origem && !est.volta && !est.modoDefinir);
   desenhaBandeiras();
   atualizaBotoesPonto();
   if(!tem){
@@ -1345,6 +1384,7 @@ function desenhaBandeiras(){
     m.on('dragend', function(){
       const ll = m.getLatLng();
       est[par[0]] = { lat: ll.lat, lon: ll.lng };
+      est[par[0] + 'Nome'] = 'Ajustada no mapa';
       desenhaRoteiro();
     });
     m.addTo(est.camadaRota);
