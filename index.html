@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0093DD">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://server.arcgisonline.com https://cdnjs.cloudflare.com; connect-src https://dqacgeqkhsqymhlxszct.supabase.co https://nominatim.openstreetmap.org; worker-src 'self'; object-src 'none'; base-uri 'none'">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -17,15 +18,17 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <style>
   :root{
-    --ink:#0B1F33; --papel:#F2F5F6; --branco:#fff; --fio:#DCE1E4; --muted:#3D4954; --sutil:#5F6B75;
+    --ink:#0B1F33; --papel:#F2F5F6; --branco:#fff; --fio:#DCE1E4; --fora:#D8DEE1; --borda-campo:#85929C; --muted:#3D4954; --sutil:#5F6B75;
     --sabesp:#0093DD; --acento:#0072AD; --agua-bg:#E5F4FC; --ok:#1E7B34; --erro:#C0392B;
+    --alerta:#8A5A00; --alerta-bg:#FFF1D6; --alerta-fio:#C9720E;
     --pv:#8A5A2B; --pv-bg1:#F8F0E5; --pv-bg2:#EDDCC5;
     --pi:#4A5560; --pi-bg1:#EEF1F4; --pi-bg2:#D8DEE4;
     --display:"Archivo",system-ui,sans-serif; --texto:"IBM Plex Sans",system-ui,sans-serif;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;min-height:100%}
-  body{font:17.5px/1.55 var(--texto);color:var(--ink);background:#D8DEE1}
+  body{font:17.5px/1.55 var(--texto);color:var(--ink);background:var(--fora)}
+  :focus-visible{outline:2px solid var(--acento);outline-offset:2px}
   #tela{max-width:480px;margin:0 auto;min-height:100vh;background:var(--papel);display:flex;flex-direction:column;position:relative}
   header{background:var(--branco);color:var(--ink);padding:14px 20px 12px;border-bottom:4px solid var(--sabesp)}
   header h1{font:800 23px/1.1 var(--display);margin:0;letter-spacing:-.01em}
@@ -35,14 +38,14 @@
   .ajuda{color:var(--sutil);font-size:15.5px;margin:0}
   .junto{white-space:nowrap}
   label{font-weight:600;font-size:16.5px;display:block;margin-bottom:6px}
-  input[type=text],textarea{width:100%;padding:16px;font:inherit;font-size:17.5px;border:1.5px solid var(--fio);border-radius:12px;background:var(--branco);color:var(--ink)}
+  input[type=text],textarea{width:100%;padding:16px;font:inherit;font-size:17.5px;border:1.5px solid var(--borda-campo);border-radius:12px;background:var(--branco);color:var(--ink)}
   input:focus,textarea:focus{outline:2px solid var(--acento);border-color:var(--acento)}
   textarea{resize:none}
   .maiusc{text-transform:uppercase}
   .btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:17px;border:0;border-radius:14px;background:var(--acento);color:#fff;font:700 19px var(--texto);cursor:pointer}
   .btn:active{filter:brightness(.92)}
-  .btn[disabled]{background:#AFBCC4;cursor:not-allowed}
-  .btn.fantasma{background:transparent;color:var(--muted);font-weight:600;padding:10px}
+  .btn[disabled]{background:#5F6B75;cursor:progress}
+  .btn.fantasma{background:transparent;color:var(--muted);font-weight:600;padding:13px}
   .btn-gps{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border:1.5px solid var(--acento);border-radius:12px;background:var(--branco);color:var(--acento);font:600 17px var(--texto);cursor:pointer}
   .btn-gps:active{background:var(--agua-bg)}
   .cartaozao{display:flex;align-items:center;gap:14px;width:100%;min-height:106px;border:2px solid var(--fio);border-radius:18px;background:var(--branco);padding:16px 44px 16px 16px;font:inherit;cursor:pointer;text-align:left;transition:transform .06s, border-color .15s, box-shadow .15s;box-shadow:0 1px 2px rgba(11,31,51,.05), 0 5px 16px rgba(11,31,51,.08);position:relative}
@@ -56,9 +59,9 @@
   .cartaozao.pv:active{border-color:var(--pv)}
   .cartaozao.pi .icone{background:linear-gradient(150deg,var(--pi-bg1),var(--pi-bg2))}
   .cartaozao.pi:active{border-color:var(--pi)}
-  .chip-tipo{display:inline-flex;align-items:center;gap:7px;background:var(--agua-bg);color:#005B8E;font-weight:700;border-radius:9px;padding:4px 12px;font-size:15px;align-self:flex-start}
+  .chip-tipo{display:inline-flex;align-items:center;gap:7px;background:var(--agua-bg);color:var(--acento);font-weight:700;border-radius:8px;padding:4px 12px;font-size:15px;align-self:flex-start}
   .fotos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .foto-slot{aspect-ratio:4/3;border:2px dashed #A6B3BA;border-radius:14px;background:var(--branco);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--sutil);font-size:14px;cursor:pointer;overflow:hidden;position:relative;text-align:center;padding:4px}
+  .foto-slot{aspect-ratio:4/3;border:2px dashed var(--borda-campo);border-radius:14px;background:var(--branco);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--sutil);font-size:14px;cursor:pointer;overflow:hidden;position:relative;text-align:center;padding:4px}
   .foto-slot .cam{font-size:30px}
   .foto-slot.precisa{border-color:var(--acento);color:var(--acento)}
   .foto-slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#0B1F33}
@@ -67,7 +70,8 @@
   .foto-slot .rm::before{content:"";position:absolute;inset:-6px}
   #visor{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px}
   #visor img{max-width:100%;max-height:80vh;border-radius:8px}
-  #visor .fechar{background:#fff;color:var(--ink);border:0;border-radius:12px;padding:12px 26px;font:700 17px var(--texto)}
+  #visor .fechar{background:#fff;color:var(--ink);border:0;border-radius:12px;padding:12px 26px;font:700 17px var(--texto);cursor:pointer}
+  #visor .refazer{background:var(--acento);color:#fff;border:0;border-radius:12px;padding:12px 22px;font:700 17px var(--texto);cursor:pointer}
   /* z-index:0 prende as camadas internas do Leaflet (ate 1000) dentro do mapa */
   #mapa{position:relative;z-index:0;height:220px;border-radius:14px;border:1px solid var(--fio);overflow:hidden}
   .endereco{display:flex;gap:10px;align-items:flex-start;background:var(--branco);border:1px solid var(--fio);border-radius:12px;padding:13px 15px;font-size:15.5px;color:var(--muted)}
@@ -83,7 +87,8 @@
   .recibo-det div:last-child{border-bottom:0}
   .recibo-det span{color:var(--sutil)}
   .recibo-det b{text-align:right}
-  .aviso-demo{background:#FFF4D6;border:1px solid #E5C877;color:#7a5a00;border-radius:12px;padding:12px 15px;font-size:14px;text-align:center}
+  .aviso-demo{background:var(--alerta-bg);border:1px solid var(--alerta-fio);color:var(--alerta);border-radius:12px;padding:12px 15px;font-size:14px;text-align:center}
+  .leaflet-bar a,.leaflet-touch .leaflet-bar a{width:40px;height:40px;line-height:40px;font-size:20px}
   .nota{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;color:var(--sutil);padding:2px 4px}
   footer{padding:0 20px 18px;text-align:center;font-size:12.5px;color:var(--sutil)}
   .oculta{display:none!important}
@@ -106,7 +111,8 @@
   </div>
   <div>
     <label for="empresa">Cliente</label>
-    <input type="text" id="empresa" class="maiusc" placeholder="NOME DO CLIENTE" maxlength="40" autocapitalize="characters" oninput="maiuscula(this)">
+    <input type="text" id="empresa" class="maiusc" placeholder="EX.: CONSTRUTORA ALFA" maxlength="40" autocapitalize="characters" oninput="maiuscula(this)">
+    <p class="ajuda" style="font-size:14px;margin-top:6px">É a empresa atendida pelo serviço. Escreva sempre do mesmo jeito para facilitar os filtros do painel.</p>
   </div>
   <div class="nota">🔒 <span>Nome e cliente identificam o registro e ficam gravados junto com as fotos enviadas.</span></div>
   <div class="erro-msg" id="erro1">Escreva seu nome e sobrenome e o nome do cliente para continuar.</div>
@@ -132,7 +138,7 @@
 <main id="t3" class="oculta">
   <div class="chip-tipo" id="chipTipo">PV</div>
   <h2>Fotos e local</h2>
-  <p class="ajuda">Tire 2 fotos do local (obrigatórias). Elas saem com data e hora gravadas e, com o local já marcado, também a posição. Se quiser, acrescente mais 2. Confira se o pino do mapa está bem em cima do <span id="tipoTxt">PV</span>.</p>
+  <p class="ajuda">Tire 2 fotos do local. Confira se o pino do mapa está bem em cima do <span id="tipoTxt">PV</span>.</p>
   <div class="fotos">
     <div class="foto-slot precisa" id="slot0" role="button" tabindex="0" onclick="abrirCamera(0)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirCamera(0)}"><span class="cam">📷</span><span>Foto 1<br><b>obrigatória</b></span></div>
     <div class="foto-slot precisa" id="slot1" role="button" tabindex="0" onclick="abrirCamera(1)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirCamera(1)}"><span class="cam">📷</span><span>Foto 2<br><b>obrigatória</b></span></div>
@@ -140,10 +146,11 @@
     <div class="foto-slot" id="slot3" role="button" tabindex="0" onclick="abrirCamera(3)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirCamera(3)}"><span class="cam">📷</span><span>Foto 4<br>(opcional)</span></div>
   </div>
   <input type="file" id="cam" accept="image/*" capture="environment" class="oculta">
+  <p class="ajuda" style="font-size:13.5px;margin-top:-4px">As fotos saem com data, hora e posição gravadas na imagem.</p>
   <div class="erro-msg" id="erroFoto">Faltam as 2 fotos obrigatórias.</div>
   <div id="mapa"></div>
   <button class="btn-gps" id="btnGps" onclick="pedirGps()">📍 Usar minha localização</button>
-  <div class="endereco"><span class="pin">📍</span><span id="endTxt">Toque em "Usar minha localização" para marcar o ponto no mapa.</span></div>
+  <div class="endereco"><span class="pin">📍</span><span id="endTxt">Local obrigatório: toque em "Usar minha localização" ou no mapa para marcar o ponto.</span></div>
   <div class="erro-msg" id="erroLoc">Falta marcar o local. Toque em "Usar minha localização" ou arraste o pino até o ponto certo.</div>
   <div>
     <label for="numRef">Número mais próximo <span style="font-weight:400;color:var(--sutil)">(referência, se houver)</span></label>
@@ -168,15 +175,18 @@
     <p class="ajuda" style="margin:0">Obrigado! As fotos e o local foram <span class="junto">enviados.</span></p>
     <div class="protocolo" id="protoTxt">PV-2026-000000</div>
     <div class="recibo-det" id="reciboDet"></div>
-    <div class="aviso-demo oculta" id="avisoDemo">⚠️ Modo demonstração: o envio ao banco ainda não está conectado.</div>
+    <div class="aviso-demo oculta" id="avisoDemo">⚠️ Modo demonstração: o envio ao sistema ainda não está ligado.</div>
     <button class="btn" onclick="novoRegistro()">Novo registro</button>
   </div>
 </main>
 
-<footer>Fator K - ETE Suzano<br>versão 1.6 · 14/11/2026</footer>
+<footer>Fator K - ETE Suzano<br>versão 1.7 · 14/11/2026</footer>
 <div id="visor" class="oculta" onclick="this.classList.add('oculta')">
   <img alt="foto ampliada">
-  <button class="fechar">Fechar</button>
+  <div style="display:flex;gap:12px">
+    <button class="fechar">Fechar</button>
+    <button class="refazer" onclick="refazFoto(event)">📷 Tirar de novo</button>
+  </div>
 </div>
 </div>
 
@@ -195,8 +205,9 @@ const est = {
   fotos:[null,null,null,null],      // {blob, url} JPEG carimbado
   fotoIds:[null,null,null,null],    // identidade de cada captura (reenvio não troca foto)
   lat:null, lon:null, gpsOk:false, precisao:null, endereco:'',
-  mapa:null, pino:null, slotAtual:0, enviando:false, protoAtual:null,
-  insertTentado:false // a gravação deste protocolo já foi tentada alguma vez? (decide o que um 409 significa)
+  mapa:null, pino:null, slotAtual:0, visorSlot:null, enviando:false, protoAtual:null,
+  processandoFoto:false, // uma foto está sendo preparada (evita trocar de slot no meio)
+  tentouEnviar:false     // já houve tentativa de envio deste registro (protege contra duplicar por outro caminho)
 };
 
 function $(id){ return document.getElementById(id); }
@@ -232,14 +243,23 @@ function iniciar(){
 })();
 
 /* ===== Tela 2 ===== */
-function escolher(tipo){
-  est.protoAtual = null; // registro novo (ou tipo trocado) ganha protocolo novo
-  est.insertTentado = false;
+function aplicaTipo(tipo){
   est.tipo = tipo;
   $('chipTipo').textContent = tipo === 'PV' ? 'PV · Poço de visita' : 'PI · Poço de inspeção';
   $('tipoTxt').textContent = tipo;
   document.querySelectorAll('.tipoTxt2').forEach(e => e.textContent = tipo);
+}
+function escolher(tipo){
+  if(est.tentouEnviar && est.fotos.some(Boolean)){
+    // houve uma tentativa de envio que pode ter sido concluída: recomeçar com as mesmas fotos duplicaria o registro
+    if(!confirm('O envio anterior pode ter sido concluído no sistema. Começar um registro novo descarta as fotos e a tentativa anterior. Continuar?')) return;
+    limpaFotosETela();
+  }
+  est.protoAtual = null; // registro novo (ou tipo trocado) ganha protocolo novo
+  est.tentouEnviar = false;
+  aplicaTipo(tipo);
   irPara(3);
+  salvaRascunho();
   if(!est.gpsOk) pedirGps();
 }
 
@@ -247,12 +267,22 @@ function escolher(tipo){
 function abrirCamera(i){
   if(est.enviando) return;
   if(est.fotos[i]){ // já tem foto: amplia
+    est.visorSlot = i;
     const v = $('visor'); v.querySelector('img').src = est.fotos[i].url; v.classList.remove('oculta');
     return;
   }
-  if(!est.gpsOk && !confirm('O GPS ainda não marcou o ponto. A foto sairá sem a posição gravada na imagem. Tirar mesmo assim?')) return;
+  if(est.processandoFoto) return; // espera a foto anterior aparecer no quadrinho
+  if(!est.gpsOk && !confirm('Ainda sem local no mapa. A foto vai sair sem endereço gravado. Tirar mesmo assim?')) return;
   est.slotAtual = i;
   $('cam').click();
+}
+function refazFoto(ev){
+  ev.stopPropagation();
+  $('visor').classList.add('oculta');
+  const i = est.visorSlot;
+  if(i === null || est.enviando || est.processandoFoto) return;
+  tiraFotoIdx(i);
+  abrirCamera(i);
 }
 function erroDeFoto(msg){
   const e = $('erroFoto'); e.textContent = msg; e.style.display = 'block';
@@ -260,9 +290,12 @@ function erroDeFoto(msg){
 $('cam').addEventListener('change', function(){
   const f = this.files && this.files[0]; this.value = '';
   if(!f) return;
+  const slot = est.slotAtual; // guarda o quadrinho DESTA foto: tocar em outro no meio não troca o destino
+  est.processandoFoto = true;
   const img = new Image();
   img.onerror = function(){
     URL.revokeObjectURL(img.src);
+    est.processandoFoto = false;
     erroDeFoto('Não foi possível ler essa foto. Tire de novo pela câmera.');
   };
   img.onload = function(){
@@ -275,8 +308,9 @@ $('cam').addEventListener('change', function(){
     carimba(ctx, c.width, c.height);
     URL.revokeObjectURL(img.src);
     c.toBlob(function(b){
+      est.processandoFoto = false;
       if(!b){ erroDeFoto('Não foi possível preparar a foto. Tire de novo.'); return; }
-      poeFoto(est.slotAtual, b);
+      poeFoto(slot, b);
     }, 'image/jpeg', .85);
   };
   img.src = URL.createObjectURL(f);
@@ -312,9 +346,9 @@ function poeFoto(i, blob){
     '<button class="rm" onclick="tiraFoto(event,'+i+')" aria-label="Remover foto">✕</button>';
   s.classList.remove('precisa');
   $('erroFoto').style.display = 'none';
+  salvaRascunho();
 }
-function tiraFoto(ev, i){
-  ev.stopPropagation();
+function tiraFotoIdx(i){
   if(est.enviando) return;
   if(est.fotos[i]) URL.revokeObjectURL(est.fotos[i].url);
   est.fotos[i] = null;
@@ -323,6 +357,11 @@ function tiraFoto(ev, i){
   const obr = i < 2;
   s.innerHTML = '<span class="cam">📷</span><span>Foto '+(i+1)+'<br>'+(obr?'<b>obrigatória</b>':'(opcional)')+'</span>';
   s.classList.toggle('precisa', obr);
+  salvaRascunho();
+}
+function tiraFoto(ev, i){
+  ev.stopPropagation();
+  tiraFotoIdx(i);
 }
 window.addEventListener('beforeunload', function(e){
   if(est.fotos.some(Boolean) && !$('t3').classList.contains('oculta')){
@@ -374,6 +413,7 @@ function fixaLocal(lat, lon, veioDoGps){
       est.mapa.setView([lat,lon], veioDoGps ? 18 : est.mapa.getZoom());
     }
   }catch(e){ console.error(e); }
+  salvaRascunho();
   buscaEndereco(lat, lon);
 }
 let geoSeq = 0;
@@ -424,8 +464,10 @@ function enviar(){
   if(!temFotos || !est.gpsOk){ window.scrollTo(0,0); return; }
 
   est.enviando = true;
+  est.tentouEnviar = true;
   const btn = $('btnEnviar');
   btn.disabled = true; btn.textContent = 'Enviando…';
+  $('numRef').disabled = true; $('obs').disabled = true; // o que vai gravado é o que está na tela agora
   $('erroEnvio').style.display = 'none';
 
   // o protocolo não muda entre tentativas do MESMO registro (reenvio não duplica foto)
@@ -439,13 +481,12 @@ function enviar(){
     lat: est.lat, lon: est.lon,
     endereco: est.endereco || null,
     num_referencia: $('numRef').value.trim() || null,
-    observacao: $('obs').value.trim() || null,
-    registrado_em: new Date().toISOString()
+    observacao: $('obs').value.trim() || null
   };
 
   const envio = DEMO ? envioDemo(proto) : envioSupabase(proto, pacote, btn);
   envio.then(function(){
-    mostraRecibo(proto);
+    mostraRecibo(pacote); // pacote.protocolo é o que de fato foi gravado (pode ter sido sorteado de novo)
   }).catch(function(e){
     const falhaDeRede = (e && (e.name === 'AbortError' || e instanceof TypeError));
     $('erroEnvio').textContent = falhaDeRede
@@ -456,6 +497,7 @@ function enviar(){
   }).finally(function(){
     est.enviando = false;
     btn.disabled = false; btn.textContent = 'Enviar registro';
+    $('numRef').disabled = false; $('obs').disabled = false;
   });
 }
 function envioDemo(proto){
@@ -489,58 +531,53 @@ function envioSupabase(proto, pacote, btn, tentativa){
   return fila.then(function(){
     if(btn) btn.textContent = 'Gravando o registro…';
     pacote.fotos = caminhos;
-    const jaTentou = est.insertTentado; // antes DESTA tentativa
-    est.insertTentado = true;
-    return comTimeout(SUPABASE_URL + '/rest/v1/' + TABELA, {
+    // A gravação é feita por uma função do banco que responde exatamente o que aconteceu:
+    // "gravado" (primeira vez), "ja_gravado" (reenvio do mesmo registro) ou "colisao"
+    // (outro aparelho usou o mesmo código por coincidência: sorteia outro e refaz).
+    return comTimeout(SUPABASE_URL + '/rest/v1/rpc/grava_registro', {
       method:'POST',
-      headers:{ 'Authorization':'Bearer '+SUPABASE_KEY, 'apikey':SUPABASE_KEY, 'Content-Type':'application/json', 'Prefer':'return=minimal' },
-      body: JSON.stringify(pacote)
+      headers:{ 'Authorization':'Bearer '+SUPABASE_KEY, 'apikey':SUPABASE_KEY, 'Content-Type':'application/json' },
+      body: JSON.stringify({ d: pacote })
     }, 30000).then(function(r){
-      if(r.ok) return;
-      if(r.status === 409){
-        // Se já houve tentativa de gravar este protocolo, o 409 diz que ela funcionou: concluído.
-        if(jaTentou) return;
-        // Nunca tentamos gravar: outro aparelho usou o mesmo código por coincidência. Sorteia outro.
+      if(!r.ok) throw new Error('tabela: HTTP '+r.status);
+      return r.json();
+    }).then(function(res){
+      if(res === 'gravado' || res === 'ja_gravado') return;
+      if(res === 'colisao'){
         if((tentativa || 0) >= 2) throw new Error('tabela: codigo repetido 3 vezes');
         est.protoAtual = protocolo();
-        est.insertTentado = false;
         pacote.protocolo = est.protoAtual;
         return envioSupabase(est.protoAtual, pacote, btn, (tentativa || 0) + 1);
       }
-      throw new Error('tabela: HTTP '+r.status);
+      throw new Error('tabela: resposta inesperada');
     });
   });
 }
 function escapaHtml(t){
-  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
-function mostraRecibo(proto){
-  $('protoTxt').textContent = proto;
+function mostraRecibo(pacote){
+  $('protoTxt').textContent = pacote.protocolo;
   const qtdFotos = est.fotos.filter(Boolean).length;
-  const numRef = $('numRef').value.trim();
-  const obs = $('obs').value.trim();
   $('reciboDet').innerHTML =
     '<div><span>Tipo</span><b>'+(est.tipo==='PV'?'PV · Poço de visita':'PI · Poço de inspeção')+'</b></div>' +
     '<div><span>Registrado por</span><b>'+escapaHtml(est.nome)+'</b></div>' +
     '<div><span>Cliente</span><b>'+escapaHtml(est.empresa)+'</b></div>' +
     (est.endereco ? '<div><span>Local</span><b>'+escapaHtml(est.endereco)+'</b></div>' : '') +
-    (numRef ? '<div><span>Nº próximo</span><b>'+escapaHtml(numRef)+'</b></div>' : '') +
-    (obs ? '<div><span>Observação</span><b>'+escapaHtml(obs)+'</b></div>' : '') +
+    (pacote.num_referencia ? '<div><span>Nº próximo</span><b>'+escapaHtml(pacote.num_referencia)+'</b></div>' : '') +
+    (pacote.observacao ? '<div><span>Observação</span><b>'+escapaHtml(pacote.observacao)+'</b></div>' : '') +
     '<div><span>Fotos</span><b>'+qtdFotos+'</b></div>';
   $('avisoDemo').classList.toggle('oculta', !DEMO);
+  apagaRascunho(); // registro enviado: o rascunho guardado no aparelho já cumpriu o papel
   irPara(4);
 }
 
 /* ===== Novo registro ===== */
-function novoRegistro(){
-  est.tipo = '';
-  est.protoAtual = null;
-  est.insertTentado = false;
-  geoSeq++; // resposta atrasada de endereço do registro anterior é descartada
+function limpaFotosETela(){
   est.fotos.forEach(function(f){ if(f) URL.revokeObjectURL(f.url); });
   est.fotos = [null,null,null,null];
   est.fotoIds = [null,null,null,null];
-  est.precisao = null;
   [0,1,2,3].forEach(function(i){
     const s = $('slot'+i);
     const obr = i < 2;
@@ -548,12 +585,99 @@ function novoRegistro(){
     s.classList.toggle('precisa', obr);
   });
   $('numRef').value = ''; $('obs').value = '';
+  ['erroFoto','erroLoc','erroEnvio'].forEach(function(id){ $(id).style.display='none'; });
+  est.protoAtual = null;
+  est.tentouEnviar = false;
+  apagaRascunho();
+}
+function novoRegistro(){
+  est.tipo = '';
+  geoSeq++; // resposta atrasada de endereço do registro anterior é descartada
+  est.precisao = null;
+  limpaFotosETela();
   est.lat = null; est.lon = null; est.gpsOk = false; est.endereco = '';
   if(est.pino){ est.mapa.removeLayer(est.pino); est.pino = null; }
-  $('endTxt').textContent = 'Toque em "Usar minha localização" para marcar o ponto no mapa.';
-  ['erroFoto','erroLoc','erroEnvio'].forEach(function(id){ $(id).style.display='none'; });
+  $('endTxt').textContent = 'Local obrigatório: toque em "Usar minha localização" ou no mapa para marcar o ponto.';
   irPara(2); // nome e empresa ficam guardados
 }
+
+/* ===== Rascunho persistente =====
+   O celular pode descartar a aba quando a câmera abre (pouca memória). O rascunho guarda
+   fotos e dados no aparelho (IndexedDB) e oferece continuar de onde parou ao reabrir. */
+let dbRasc = null;
+function abreDB(){
+  return new Promise(function(res){
+    if(dbRasc) return res(dbRasc);
+    if(!window.indexedDB) return res(null);
+    try{
+      const req = indexedDB.open('fatork', 1);
+      req.onupgradeneeded = function(){ req.result.createObjectStore('rascunho'); };
+      req.onsuccess = function(){ dbRasc = req.result; res(dbRasc); };
+      req.onerror = function(){ res(null); };
+    }catch(e){ res(null); }
+  });
+}
+let salvaAgendado = null;
+function salvaRascunho(){
+  if(salvaAgendado) clearTimeout(salvaAgendado);
+  salvaAgendado = setTimeout(function(){
+    salvaAgendado = null;
+    abreDB().then(function(db){
+      if(!db || !est.tipo) return;
+      try{
+        const d = {
+          tipo: est.tipo, lat: est.lat, lon: est.lon, gpsOk: est.gpsOk, precisao: est.precisao,
+          numRef: $('numRef').value, obs: $('obs').value,
+          fotos: est.fotos.map(function(f){ return f ? f.blob : null; }),
+          fotoIds: est.fotoIds.slice(), quando: Date.now()
+        };
+        db.transaction('rascunho','readwrite').objectStore('rascunho').put(d, 'atual');
+      }catch(e){}
+    });
+  }, 400);
+}
+function apagaRascunho(){
+  if(salvaAgendado){ clearTimeout(salvaAgendado); salvaAgendado = null; }
+  abreDB().then(function(db){
+    if(!db) return;
+    try{ db.transaction('rascunho','readwrite').objectStore('rascunho').delete('atual'); }catch(e){}
+  });
+}
+$('numRef').addEventListener('input', salvaRascunho);
+$('obs').addEventListener('input', salvaRascunho);
+(function recuperaRascunho(){
+  abreDB().then(function(db){
+    if(!db) return;
+    let rq;
+    try{ rq = db.transaction('rascunho').objectStore('rascunho').get('atual'); }catch(e){ return; }
+    rq.onsuccess = function(){
+      const d = rq.result;
+      if(!d || !d.tipo || !d.fotos || !d.fotos.some(Boolean)) return;
+      if(Date.now() - (d.quando || 0) > 24*60*60*1000){ apagaRascunho(); return; }
+      const n = $('nome').value.trim(), e2 = $('empresa').value.trim();
+      if(n.length < 5 || e2.length < 2) return; // sem nome e cliente guardados não dá para retomar direto
+      const hr = new Date(d.quando || Date.now());
+      const hh = String(hr.getHours()).padStart(2,'0') + ':' + String(hr.getMinutes()).padStart(2,'0');
+      if(!confirm('Há um registro de ' + d.tipo + ' começado às ' + hh + ' com fotos que não foram enviadas. Continuar esse registro?')){
+        apagaRascunho(); return;
+      }
+      est.nome = n.toUpperCase(); est.empresa = e2.toUpperCase();
+      aplicaTipo(d.tipo);
+      d.fotos.forEach(function(b, i){
+        if(b){
+          poeFoto(i, b);
+          if(d.fotoIds && d.fotoIds[i]) est.fotoIds[i] = d.fotoIds[i]; // mesma captura = mesmo caminho no reenvio
+        }
+      });
+      $('numRef').value = d.numRef || ''; $('obs').value = d.obs || '';
+      irPara(3);
+      if(d.gpsOk && typeof d.lat === 'number' && typeof d.lon === 'number'){
+        est.precisao = d.precisao || null;
+        setTimeout(function(){ fixaLocal(d.lat, d.lon, false); }, 150);
+      }
+    };
+  });
+})();
 
 /* ===== App abre mesmo sem internet ===== */
 if('serviceWorker' in navigator){
