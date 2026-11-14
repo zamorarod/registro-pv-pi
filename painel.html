@@ -417,7 +417,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.25 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.26 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -1203,6 +1203,13 @@ function expandeAbrev(t){
   if(m && ABREV[m[1].toLowerCase()]) return ABREV[m[1].toLowerCase()] + ' ' + m[2];
   return t;
 }
+function separaNumero(t){
+  // acha o numero do local: "Rua X, 406", "Rua X 406", "Rua X, 406, Cidade", "Rua X, nº 406"
+  // nao confunde com numero no NOME da rua ("Avenida 23 de Maio")
+  const m = t.match(/^(.+?)[\s,]+(?:n[ºo°]?\.?\s*)?(\d{1,6})(\s*,\s*(.*))?$/i);
+  if(!m) return { numero:null, rua:t, cidade:'' };
+  return { numero:m[2], rua:m[1].replace(/[\s,]+$/,'').trim(), cidade:(m[4]||'').trim() };
+}
 function campoEnd(qual){ return $(qual === 'origem' ? 'endOrigem' : 'endVolta'); }
 function caixaSug(qual){ return $(qual === 'origem' ? 'sugOrigem' : 'sugVolta'); }
 function sugFecha(qual){
@@ -1217,27 +1224,48 @@ function sugDigita(qual){
   if(s.timer) clearTimeout(s.timer);
   s.timer = setTimeout(function(){ sugConsulta(qual); }, 300);
 }
-function sugConsulta(qual){
-  const txt = campoEnd(qual).value.trim();
-  if(txt.length < 3){ sugFecha(qual); return; }
-  const c = est.mapa ? est.mapa.getCenter() : { lat:-23.54, lng:-46.4 };
+function photonBusca(q, c){
   const url = 'https://photon.komoot.io/api/?limit=5&lang=default&lat=' + c.lat + '&lon=' + c.lng
-    + '&q=' + encodeURIComponent(expandeAbrev(txt));
-  comTimeout(url, {}, 10000).then(function(r){ return r.json(); }).then(function(d){
-    if(campoEnd(qual).value.trim() !== txt) return; // a pessoa ja digitou mais; essa resposta ficou velha
+    + '&q=' + encodeURIComponent(q);
+  return comTimeout(url, {}, 10000).then(function(r){ return r.json(); }).then(function(d){
     const vistos = Object.create(null);
-    const feats = (d.features || []).filter(function(f){
+    return (d.features || []).filter(function(f){
       if(!(f.properties && f.properties.countrycode === 'BR' && f.geometry && f.geometry.coordinates)) return false;
       const r = rotuloSug(f.properties), chave = r.l1 + '|' + r.l2; // mesma rua em trechos diferentes = uma sugestao so
       if(vistos[chave]) return false;
       vistos[chave] = true;
       return true;
     });
+  });
+}
+function sugConsulta(qual){
+  const txt = campoEnd(qual).value.trim();
+  if(txt.length < 3){ sugFecha(qual); return; }
+  const c = est.mapa ? est.mapa.getCenter() : { lat:-23.54, lng:-46.4 };
+  const exp = expandeAbrev(txt);
+  const sep = separaNumero(exp);
+  photonBusca(exp, c).then(function(feats){
+    if(campoEnd(qual).value.trim() !== txt) return; // a pessoa ja digitou mais; essa resposta ficou velha
+    if(!feats.length && sep.numero){
+      // o numero atrapalhou a busca: tenta de novo so com a rua (e cidade, se veio)
+      return photonBusca(sep.rua + (sep.cidade ? ', ' + sep.cidade : ''), c).then(function(f2){
+        if(campoEnd(qual).value.trim() !== txt) return;
+        sug[qual].numero = sep.numero;
+        sugMostra(qual, f2);
+      });
+    }
+    sug[qual].numero = sep.numero;
     sugMostra(qual, feats);
   }).catch(function(){ sugFecha(qual); });
 }
+function ehRuaSemNumero(p){
+  return p.type === 'street' && !p.housenumber; // rua de verdade (ponto de onibus etc. tambem e "highway", mas nao e type street)
+}
 function rotuloSug(p){
-  const l1 = [p.name || p.street, p.housenumber].filter(Boolean).join(', ');
+  const base = p.name || p.street || '';
+  // so acrescenta o numero se ele ja nao estiver escrito no nome (senao sai "Rua Mandu, 123, 123")
+  const jaTem = p.housenumber && base.split(/[\s,]+/).indexOf(String(p.housenumber)) >= 0;
+  const l1 = (p.housenumber && !jaTem) ? base + ', ' + p.housenumber : base;
   const l2 = [p.district, p.city, p.state].filter(Boolean).join(' · ');
   return { l1: l1 || l2, l2: l1 ? l2 : '' };
 }
@@ -1249,7 +1277,9 @@ function sugMostra(qual, feats){
   feats.forEach(function(f, i){
     const p = f.properties, r = rotuloSug(p);
     const it = el('div','sug-item');
-    it.appendChild(el('span','sug-l1', r.l1));
+    // a pessoa digitou um numero e isto e uma rua: a sugestao ja mostra a rua COM o numero
+    const l1 = (s.numero && ehRuaSemNumero(p)) ? (p.name || p.street) + ', ' + s.numero : r.l1;
+    it.appendChild(el('span','sug-l1', l1));
     if(r.l2) it.appendChild(el('span','sug-l2', r.l2));
     it.onmousedown = function(ev){ ev.preventDefault(); sugEscolhe(qual, i); }; // antes do blur do campo
     g.appendChild(it);
@@ -1264,13 +1294,29 @@ function sugMarca(qual){
   });
 }
 function sugEscolhe(qual, i){
-  const f = sug[qual].itens[i];
+  const s = sug[qual], f = s.itens[i];
   if(!f) return;
   const p = f.properties, r = rotuloSug(p);
-  campoEnd(qual).value = r.l1 + (p.city && r.l1.indexOf(p.city) < 0 ? ', ' + p.city : '');
+  const numero = (s.numero && ehRuaSemNumero(p)) ? s.numero : null;
   sugFecha(qual);
+  const l1 = numero ? (p.name || p.street) + ', ' + numero : r.l1;
+  campoEnd(qual).value = l1 + (p.city && l1.indexOf(p.city) < 0 ? ', ' + p.city : '');
   pontoAchado(qual, f.geometry.coordinates[1], f.geometry.coordinates[0],
-    r.l1 + (p.district || p.city ? ' · ' + (p.district || p.city) : ''));
+    l1 + (p.district || p.city ? ' · ' + (p.district || p.city) : ''));
+  if(numero) refinaNumero(qual, p, numero, f.geometry.coordinates);
+}
+function refinaNumero(qual, p, numero, prov){
+  // tenta achar a ALTURA exata da rua; se nao achar, o ponto fica no trecho ja marcado
+  const q = (p.name || p.street) + ' ' + numero + ' ' + (p.city || '');
+  const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&accept-language=pt-BR&q=' + encodeURIComponent(q);
+  comTimeout(url, {}, 15000).then(function(r){ return r.json(); }).then(function(l){
+    if(!l || !l.length) return;
+    const atual = est[qual];
+    if(!atual || atual.lat !== prov[1] || atual.lon !== prov[0]) return; // a pessoa ja mexeu no ponto
+    est[qual] = { lat: parseFloat(l[0].lat), lon: parseFloat(l[0].lon) };
+    desenhaRoteiro();
+    if(est.mapa) est.mapa.panTo([est[qual].lat, est[qual].lon]);
+  }).catch(function(){});
 }
 function sugTecla(qual, ev){
   const s = sug[qual], aberta = !caixaSug(qual).classList.contains('oculta') && s.itens.length > 0;
