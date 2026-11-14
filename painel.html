@@ -214,6 +214,7 @@
     <div class="sub">Acompanhamento ao vivo · atualiza a cada 30 s</div>
   </div>
   <div class="cab-dir oculta" id="cabDir">
+    <span class="hora" id="quemLogado"></span>
     <span class="hora" id="horaTxt"></span>
     <button class="btn claro" id="btnAtualiza" onclick="carrega(true)">Atualizar</button>
     <button class="btn" onclick="exportaPlanilha()">⬇ Exportar planilha</button>
@@ -233,7 +234,7 @@
       <label for="senha">Senha</label>
       <input type="password" id="senha" autocomplete="current-password">
     </div>
-    <label class="lembrar"><input type="checkbox" id="lembrar" checked> Continuar conectado neste computador</label>
+    <label class="lembrar"><input type="checkbox" id="lembrar"> Continuar conectado neste computador (só marque em computador seu)</label>
     <div class="erro-msg" id="erroLogin">E-mail ou senha incorretos. Confira e tente de novo.</div>
     <button class="btn" id="btnEntrar" onclick="entrar()">Entrar</button>
     <p class="ajuda" style="font-size:13px">Esqueceu a senha? Fale com o responsável pelo sistema para gerar uma nova.</p>
@@ -362,7 +363,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.19 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.20 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -370,7 +371,7 @@ const URL_BASE = 'https://dqacgeqkhsqymhlxszct.supabase.co';
 const CHAVE = 'sb_publishable_DOMUkskgKAgVq1qVo1gBrg_FCSti82Q'; // chave pública (a mesma do app)
 const INTERVALO_MS = 30000;
 
-const est = { token:null, renovador:null, expira:0, regs:[], totalConsulta:null, fotoUrl:Object.create(null), timer:null, buscando:false,
+const est = { token:null, renovador:null, expira:0, papel:'consulta', usuario:'', regs:[], totalConsulta:null, fotoUrl:Object.create(null), timer:null, buscando:false,
               mapa:null, camadaPontos:null, camadaRota:null, vista:'lista', popupAberto:null,
               roteiro:Object.create(null), ordemRota:[],
               origem:null, volta:null, modoDefinir:null, ordemManual:null,
@@ -393,6 +394,7 @@ function guardaSessao(d){
   est.token = d.access_token;
   est.renovador = d.refresh_token;
   est.expira = Date.now() + (d.expires_in - 120) * 1000;
+  if(d.user && d.user.email) est.usuario = d.user.email;
   try{
     if($('lembrar').checked) localStorage.setItem('pvpi_painel_rt', d.refresh_token);
     else localStorage.removeItem('pvpi_painel_rt');
@@ -446,6 +448,8 @@ function sair(){
   }
   try{ localStorage.removeItem('pvpi_painel_rt'); }catch(e){}
   est.token = null; est.renovador = null; est.regs = []; est.fotoUrl = Object.create(null);
+  est.papel = 'consulta'; est.usuario = '';
+  $('quemLogado').textContent = ''; $('senha').value = '';
   if(est.timer) clearInterval(est.timer);
   fechaDetalhe();
   $('telaPainel').classList.add('oculta'); $('cabDir').classList.add('oculta');
@@ -470,7 +474,17 @@ function abrePainel(){
   $('telaLogin').classList.add('oculta');
   $('telaPainel').classList.remove('oculta');
   $('cabDir').classList.remove('oculta');
-  carrega(true);
+  // perfil de acesso: Gestor muda situacao; Consulta so le. Sem perfil cadastrado = Consulta.
+  // A trava de verdade e a regra do banco; aqui so se decide o que a tela mostra.
+  est.papel = 'consulta';
+  chama('/rest/v1/perfis?select=papel')
+    .then(function(r){ return r.ok ? r.json() : []; })
+    .then(function(rows){ if(rows[0] && rows[0].papel === 'gestor') est.papel = 'gestor'; })
+    .catch(function(){})
+    .finally(function(){
+      $('quemLogado').textContent = (est.usuario ? est.usuario + ' · ' : '') + (est.papel === 'gestor' ? 'Gestor' : 'Consulta');
+      carrega(true);
+    });
   if(est.timer) clearInterval(est.timer);
   est.timer = setInterval(function(){ carrega(false); }, INTERVALO_MS);
 }
@@ -709,14 +723,19 @@ function abreDetalhe(r){
   d.appendChild(dl);
   const stB = el('div','det-sit');
   stB.appendChild(el('span','det-sit-rot','Situação:'));
-  SITUACOES.forEach(function(s){
-    const atual = sitDe(r) === s;
-    const b = el('button','sit-btn ' + s + (atual ? ' atual' : ''), s);
-    b.type = 'button';
-    if(!atual) b.onclick = function(){ mudaSituacao(r, s); };
-    stB.appendChild(b);
-  });
-  stB.appendChild(el('span','det-sit-msg',''));
+  if(est.papel === 'gestor'){
+    SITUACOES.forEach(function(s){
+      const atual = sitDe(r) === s;
+      const b = el('button','sit-btn ' + s + (atual ? ' atual' : ''), s);
+      b.type = 'button';
+      if(!atual) b.onclick = function(){ mudaSituacao(r, s); };
+      stB.appendChild(b);
+    });
+    stB.appendChild(el('span','det-sit-msg',''));
+  } else {
+    stB.appendChild(el('span','sit ' + sitDe(r), sitDe(r)));
+    stB.appendChild(el('span','det-sit-rot','Só o gestor altera a situação.'));
+  }
   d.appendChild(stB);
   const fx = el('div','det-fotos');
   (r.fotos||[]).forEach(function(caminho, i){
@@ -743,6 +762,7 @@ function abreDetalhe(r){
   d.setAttribute('tabindex','-1'); d.focus();
 }
 function mudaSituacao(r, nova){
+  if(est.papel !== 'gestor') return; // o banco tambem recusa; aqui so evita clique perdido
   document.querySelectorAll('.det-sit .sit-btn').forEach(function(b){ b.disabled = true; });
   const m0 = document.querySelector('.det-sit-msg');
   if(m0){ m0.style.color = 'var(--sutil)'; m0.textContent = 'Salvando…'; }
