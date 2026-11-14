@@ -119,6 +119,13 @@
   .rot-item .rot-l2{font-size:12.5px;color:var(--sutil);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .rot-item .ordem{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;border-radius:50%;background:var(--acento);color:#fff;font:700 11.5px var(--texto);flex:0 0 auto}
   .rot-vazio{padding:14px;font-size:13.5px;color:var(--sutil)}
+  .btn.mini{padding:7px 11px;font-size:12.5px}
+  .rot-sub{font-size:13px;color:var(--sutil);font-weight:600}
+  .rot-extra{padding:8px 14px}
+  .rot-mv{display:flex;gap:3px;margin-left:auto;flex:0 0 auto}
+  .mv-btn{border:1px solid var(--fio);background:var(--branco);border-radius:7px;width:28px;height:26px;font-size:11px;cursor:pointer;color:var(--muted);line-height:1;padding:0}
+  .mv-btn:hover{color:var(--acento);border-color:var(--acento)}
+  .bandeira{font-size:24px;filter:drop-shadow(0 1px 2px rgba(11,31,51,.45))}
   .rot-links{background:var(--branco);border:1px solid var(--fio);border-radius:14px;padding:12px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px;font-size:13.5px;color:var(--sutil)}
   .rot-links textarea{width:100%;border:1.5px solid var(--fio);border-radius:10px;padding:9px;font:13px/1.5 var(--texto);color:var(--ink);resize:vertical}
   @media (max-width:860px){
@@ -313,6 +320,14 @@
       <button type="button" class="btn claro oculta" id="rotCopiar" onclick="roteiroCopiar()">Copiar link</button>
       <button type="button" class="btn claro oculta" id="rotLimpar" onclick="roteiroLimpar()">Limpar</button>
     </div>
+    <div class="bar-roteiro rot-extra">
+      <span class="rot-sub">🚩 Saída:</span>
+      <button type="button" class="btn claro mini" id="btnOrigem" onclick="marcarPonto('origem')">Marcar no mapa</button>
+      <span class="rot-sub">🏁 Volta:</span>
+      <button type="button" class="btn claro mini" id="btnVolta" onclick="marcarPonto('volta')">Marcar no mapa</button>
+      <button type="button" class="btn claro mini oculta" id="btnRecalc" onclick="recalculaOrdem()">↻ Voltar à melhor ordem</button>
+      <span class="rot-sub" id="dicaPonto"></span>
+    </div>
     <div class="rot-links oculta" id="rotLinks">
       <span>Este navegador não deixou copiar sozinho. Toque no texto abaixo e copie com Ctrl+C (ou segure e Copiar no celular):</span>
       <textarea id="rotLinksTexto" readonly rows="3" onclick="this.select()"></textarea>
@@ -333,7 +348,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.17 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.18 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -344,6 +359,7 @@ const INTERVALO_MS = 30000;
 const est = { token:null, renovador:null, expira:0, regs:[], fotoUrl:Object.create(null), timer:null, buscando:false,
               mapa:null, camadaPontos:null, camadaRota:null, vista:'lista', mapaEnquadrado:false,
               roteiro:Object.create(null), ordemRota:[],
+              origem:null, volta:null, modoDefinir:null, ordemManual:null,
               selCliente:Object.create(null), selQuem:Object.create(null) };
 
 function $(id){ return document.getElementById(id); }
@@ -730,6 +746,12 @@ function montaMapaPainel(){
   L.control.layers({ 'Ruas (OpenStreetMap)': osm, 'Ruas (Esri)': esriRuas, 'Satélite': satelite }, null, {collapsed:false}).addTo(est.mapa);
   est.camadaPontos = L.layerGroup().addTo(est.mapa);
   est.camadaRota = L.layerGroup().addTo(est.mapa);
+  est.mapa.on('click', function(e){
+    if(!est.modoDefinir) return;
+    est[est.modoDefinir] = { lat: e.latlng.lat, lon: e.latlng.lng };
+    est.modoDefinir = null;
+    desenhaRoteiro();
+  });
 }
 function renderMapa(){
   if(!est.mapa) return;
@@ -763,7 +785,13 @@ function renderMapa(){
 
 /* ===== Roteiro: melhor ordem de visita e link do Google Maps ===== */
 function alternaRoteiro(proto){
-  if(est.roteiro[proto]) delete est.roteiro[proto]; else est.roteiro[proto] = true;
+  if(est.roteiro[proto]){
+    delete est.roteiro[proto];
+    if(est.ordemManual) est.ordemManual = est.ordemManual.filter(function(p){ return p !== proto; });
+  } else {
+    est.roteiro[proto] = true;
+    if(est.ordemManual) est.ordemManual.push(proto); // ponto novo entra no fim da ordem ajustada
+  }
   if(est.mapa) est.mapa.closePopup(); // senão o redesenho é pulado com balão aberto
   renderMapa();
 }
@@ -773,6 +801,7 @@ function roteiroTodos(){
 }
 function roteiroLimpar(){
   est.roteiro = Object.create(null);
+  est.ordemManual = null;
   renderMapa();
 }
 function distKm(a, b){
@@ -785,40 +814,89 @@ function totalKm(ord){
   for(let i=1; i<ord.length; i++) d += distKm(ord[i-1], ord[i]);
   return d;
 }
+function kmRota(ord){
+  // distancia do trajeto inteiro, contando a saida e a volta quando marcadas
+  if(!ord.length) return 0;
+  let d = est.origem ? distKm(est.origem, ord[0]) : 0;
+  for(let i = 1; i < ord.length; i++) d += distKm(ord[i-1], ord[i]);
+  if(est.volta) d += distKm(ord[ord.length-1], est.volta);
+  return d;
+}
 function ordemRoteiro(pts){
-  if(pts.length <= 2) return pts.slice();
-  // vizinho mais proximo partindo de cada ponto, melhorado com 2-opt; fica com o menor trajeto
-  let melhor = null, melhorKm = Infinity;
-  const inicios = pts.length <= 25 ? pts.length : 10;
-  for(let ini = 0; ini < inicios; ini++){
-    const resta = pts.slice();
-    const ord = [resta.splice(ini, 1)[0]];
-    while(resta.length){
-      let pi = 0, pd = Infinity;
-      for(let i = 0; i < resta.length; i++){
-        const d = distKm(ord[ord.length-1], resta[i]);
-        if(d < pd){ pd = d; pi = i; }
-      }
-      ord.push(resta.splice(pi, 1)[0]);
-    }
-    let trocou = true, voltas = 0;
-    while(trocou && voltas++ < 30){
+  // vizinho mais proximo + 2-opt, ancorado na saida e na volta quando marcadas
+  const origem = est.origem, volta = est.volta;
+  if(pts.length <= 1) return pts.slice();
+  function doisOpt(ord){
+    let trocou = true, voltasLoop = 0;
+    while(trocou && voltasLoop++ < 40){
       trocou = false;
-      for(let i = 0; i < ord.length-2; i++){
-        for(let j = i+2; j < ord.length-1; j++){
-          if(distKm(ord[i],ord[i+1]) + distKm(ord[j],ord[j+1]) >
-             distKm(ord[i],ord[j]) + distKm(ord[i+1],ord[j+1]) + 1e-9){
-            const seg = ord.slice(i+1, j+1).reverse();
-            for(let k = 0; k < seg.length; k++) ord[i+1+k] = seg[k];
+      for(let i = 0; i < ord.length - 1; i++){
+        for(let j = i + 1; j < ord.length; j++){
+          const prev = i > 0 ? ord[i-1] : origem;
+          const prox = j < ord.length - 1 ? ord[j+1] : volta;
+          const antes  = (prev ? distKm(prev, ord[i]) : 0) + (prox ? distKm(ord[j], prox) : 0);
+          const depois = (prev ? distKm(prev, ord[j]) : 0) + (prox ? distKm(ord[i], prox) : 0);
+          if(depois < antes - 1e-9){
+            const seg = ord.slice(i, j + 1).reverse();
+            for(let k = 0; k < seg.length; k++) ord[i + k] = seg[k];
             trocou = true;
           }
         }
       }
     }
-    const km = totalKm(ord);
+  }
+  let melhor = null, melhorKm = Infinity;
+  const inicios = origem ? 1 : (pts.length <= 25 ? pts.length : 10);
+  for(let ini = 0; ini < inicios; ini++){
+    const resta = pts.slice();
+    const ord = [];
+    if(origem){
+      let pi = 0, pd = Infinity;
+      for(let i = 0; i < resta.length; i++){ const d = distKm(origem, resta[i]); if(d < pd){ pd = d; pi = i; } }
+      ord.push(resta.splice(pi, 1)[0]);
+    } else {
+      ord.push(resta.splice(ini, 1)[0]);
+    }
+    while(resta.length){
+      let pi = 0, pd = Infinity;
+      for(let i = 0; i < resta.length; i++){ const d = distKm(ord[ord.length-1], resta[i]); if(d < pd){ pd = d; pi = i; } }
+      ord.push(resta.splice(pi, 1)[0]);
+    }
+    doisOpt(ord);
+    const km = kmRota(ord);
     if(km < melhorKm){ melhorKm = km; melhor = ord; }
   }
   return melhor;
+}
+function marcarPonto(qual){
+  if(est[qual]){ est[qual] = null; est.modoDefinir = null; }
+  else est.modoDefinir = (est.modoDefinir === qual) ? null : qual;
+  desenhaRoteiro();
+}
+function recalculaOrdem(){
+  est.ordemManual = null;
+  desenhaRoteiro();
+}
+function moveNaOrdem(proto, delta){
+  if(!est.ordemManual) est.ordemManual = est.ordemRota.map(function(r){ return r.protocolo; });
+  const i = est.ordemManual.indexOf(proto);
+  const j = i + delta;
+  if(i < 0 || j < 0 || j >= est.ordemManual.length) return;
+  const t = est.ordemManual[i]; est.ordemManual[i] = est.ordemManual[j]; est.ordemManual[j] = t;
+  desenhaRoteiro();
+}
+function atualizaBotoesPonto(){
+  [['origem','btnOrigem','a saída'],['volta','btnVolta','a volta']].forEach(function(par){
+    const b = $(par[1]);
+    if(est[par[0]]) b.textContent = '✕ Remover';
+    else if(est.modoDefinir === par[0]) b.textContent = 'Toque no mapa…';
+    else b.textContent = 'Marcar no mapa';
+    b.classList.toggle('ativo', !!est[par[0]] || est.modoDefinir === par[0]);
+  });
+  $('dicaPonto').textContent = est.modoDefinir
+    ? 'Toque no mapa no lugar ' + (est.modoDefinir === 'origem' ? 'de onde a equipe sai.' : 'para onde a equipe volta.')
+    : '';
+  $('btnRecalc').classList.toggle('oculta', !est.ordemManual);
 }
 function montaRotLista(){
   const g = $('rotLista'); g.innerHTML = '';
@@ -846,6 +924,15 @@ function montaRotLista(){
     tx.appendChild(l1);
     tx.appendChild(el('span','rot-l2', r.empresa + ' · ' + localDe(r)));
     it.appendChild(tx);
+    if(posicao[r.protocolo] && est.ordemRota.length > 1){
+      const mv = el('span','rot-mv');
+      const sobe = el('button','mv-btn','▲'); sobe.type = 'button'; sobe.title = 'Visitar antes';
+      sobe.onclick = function(ev){ ev.stopPropagation(); moveNaOrdem(r.protocolo, -1); };
+      const desce = el('button','mv-btn','▼'); desce.type = 'button'; desce.title = 'Visitar depois';
+      desce.onclick = function(ev){ ev.stopPropagation(); moveNaOrdem(r.protocolo, 1); };
+      mv.appendChild(sobe); mv.appendChild(desce);
+      it.appendChild(mv);
+    }
     g.appendChild(it);
   });
   if(semPonto > 0){
@@ -863,6 +950,8 @@ function desenhaRoteiro(){
   $('rotAbrir').classList.toggle('oculta', !tem);
   $('rotCopiar').classList.toggle('oculta', !tem);
   $('rotLimpar').classList.toggle('oculta', !tem);
+  desenhaBandeiras();
+  atualizaBotoesPonto();
   if(!tem){
     est.ordemRota = [];
     $('rotInfo').textContent = 'Marque os pontos na lista ao lado do mapa.';
@@ -870,15 +959,30 @@ function desenhaRoteiro(){
     montaRotLista();
     return;
   }
-  const ord = ordemRoteiro(pts);
+  let ord;
+  if(est.ordemManual){
+    // respeita a ordem que a pessoa ajustou (pontos novos ficam no fim)
+    const porProto = Object.create(null);
+    pts.forEach(function(r){ porProto[r.protocolo] = r; });
+    est.ordemManual = est.ordemManual.filter(function(p){ return porProto[p]; });
+    pts.forEach(function(r){ if(est.ordemManual.indexOf(r.protocolo) < 0) est.ordemManual.push(r.protocolo); });
+    ord = est.ordemManual.map(function(p){ return porProto[p]; });
+  } else {
+    ord = ordemRoteiro(pts);
+  }
   est.ordemRota = ord;
-  const partes = Math.ceil(ord.length / 10);
-  $('rotInfo').textContent = ord.length + (ord.length === 1 ? ' parada' : ' paradas na melhor ordem')
-    + ' · aprox. ' + totalKm(ord).toFixed(1).replace('.', ',') + ' km em linha reta'
+  const totalLink = ord.length + (est.volta ? 1 : 0);
+  const partes = Math.ceil(totalLink / 10);
+  $('rotInfo').textContent = (est.ordemManual ? 'Ordem ajustada à mão · ' : '')
+    + ord.length + (ord.length === 1 ? ' parada' : (est.ordemManual ? ' paradas' : ' paradas na melhor ordem'))
+    + ' · aprox. ' + kmRota(ord).toFixed(1).replace('.', ',') + ' km em linha reta'
     + (partes > 1 ? ' · dividido em ' + partes + ' trechos (limite do Google Maps)' : '');
-  if(ord.length > 1){
-    L.polyline(ord.map(function(r){ return [r.lat, r.lon]; }),
-      {color:'#0093DD', weight:3, opacity:.85, dashArray:'7 7'}).addTo(est.camadaRota);
+  const linha = [];
+  if(est.origem) linha.push([est.origem.lat, est.origem.lon]);
+  ord.forEach(function(r){ linha.push([r.lat, r.lon]); });
+  if(est.volta) linha.push([est.volta.lat, est.volta.lon]);
+  if(linha.length > 1){
+    L.polyline(linha, {color:'#0093DD', weight:3, opacity:.85, dashArray:'7 7'}).addTo(est.camadaRota);
   }
   ord.forEach(function(r, i){
     L.marker([r.lat, r.lon], {
@@ -888,14 +992,34 @@ function desenhaRoteiro(){
   });
   montaRotLista();
 }
+function desenhaBandeiras(){
+  [['origem','🚩','Saída da equipe (arraste para ajustar)'],['volta','🏁','Volta da equipe (arraste para ajustar)']].forEach(function(par){
+    const p = est[par[0]];
+    if(!p) return;
+    const m = L.marker([p.lat, p.lon], {
+      icon: L.divIcon({className:'', html:'<span class="bandeira">'+par[1]+'</span>', iconSize:[26,26], iconAnchor:[4,24]}),
+      draggable: true, title: par[2]
+    });
+    m.on('dragend', function(){
+      const ll = m.getLatLng();
+      est[par[0]] = { lat: ll.lat, lon: ll.lng };
+      desenhaRoteiro();
+    });
+    m.addTo(est.camadaRota);
+  });
+}
 function linksRoteiro(){
+  const paradas = est.ordemRota.slice();
+  if(est.volta) paradas.push({ lat: est.volta.lat, lon: est.volta.lon }); // a volta vira o destino final
   const urls = [];
-  for(let i = 0; i < est.ordemRota.length; i += 10){
-    const grupo = est.ordemRota.slice(i, i + 10); // o Google Maps aceita ate 10 paradas por link
+  for(let i = 0; i < paradas.length; i += 10){
+    const grupo = paradas.slice(i, i + 10); // o Google Maps aceita ate 10 paradas por link
     const fim = grupo[grupo.length - 1];
     const meio = grupo.slice(0, -1).map(function(r){ return r.lat + ',' + r.lon; }).join('|');
-    urls.push('https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=' + fim.lat + ',' + fim.lon
-      + (meio ? '&waypoints=' + encodeURIComponent(meio) : ''));
+    let u = 'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=' + fim.lat + ',' + fim.lon
+      + (meio ? '&waypoints=' + encodeURIComponent(meio) : '');
+    if(i === 0 && est.origem) u += '&origin=' + est.origem.lat + ',' + est.origem.lon;
+    urls.push(u);
   }
   return urls;
 }
