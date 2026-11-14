@@ -77,6 +77,13 @@
   .pop-ficha{font:14px/1.5 var(--texto);color:var(--ink)}
   .pop-ficha b{font:700 15px var(--display)}
   .pop-ficha .btn{padding:8px 12px;font-size:13.5px;margin-top:8px}
+  .pop-acoes{display:flex;gap:6px;flex-wrap:wrap}
+  /* roteiro */
+  .bar-roteiro{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--branco);border:1px solid var(--fio);border-radius:14px;padding:10px 14px;margin-bottom:10px}
+  .rot-tit{font:700 14px var(--display)}
+  .rot-info{font-size:13.5px;color:var(--sutil)}
+  .bar-roteiro .btn{padding:8px 12px;font-size:13.5px}
+  .num-rota span{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--acento);color:#fff;font:700 12px var(--texto);border:2px solid #fff;box-shadow:0 1px 4px rgba(11,31,51,.4)}
   /* lista */
   .tabela{background:var(--branco);border:1px solid var(--fio);border-radius:14px;overflow:hidden}
   .cabecalho,.linha{display:grid;grid-template-columns:168px 50px 116px minmax(128px,1fr) minmax(110px,.8fr) minmax(160px,1.4fr) 58px 18px;gap:12px;align-items:center;padding:11px 16px}
@@ -232,6 +239,14 @@
     <div class="vazio oculta" id="vazio">Nenhum registro encontrado com esse filtro.</div>
   </div>
   <div id="vistaMapa" class="oculta">
+    <div class="bar-roteiro">
+      <span class="rot-tit">🧭 Roteiro para a equipe</span>
+      <span class="rot-info" id="rotInfo">Toque num pino e use Adicionar ao roteiro, ou adicione todos do filtro.</span>
+      <button type="button" class="btn claro" onclick="roteiroTodos()">➕ Todos do filtro</button>
+      <button type="button" class="btn oculta" id="rotAbrir" onclick="roteiroAbrir()">📍 Abrir no Google Maps</button>
+      <button type="button" class="btn claro oculta" id="rotCopiar" onclick="roteiroCopiar()">Copiar link</button>
+      <button type="button" class="btn claro oculta" id="rotLimpar" onclick="roteiroLimpar()">Limpar</button>
+    </div>
     <div id="mapaP"></div>
     <div class="legenda">
       <span><svg width="12" height="18" viewBox="0 0 22 32"><path d="M11 1C6.9 1 3.5 4.4 3.5 8.6 3.5 14.4 11 31 11 31s7.5-16.6 7.5-22.4C18.5 4.4 15.1 1 11 1Z" fill="#8A5A2B" stroke="#fff" stroke-width="1.6"/><circle cx="11" cy="8.6" r="3.1" fill="#fff"/></svg>PV · Poço de visita</span>
@@ -245,7 +260,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.10 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.11 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -254,7 +269,8 @@ const CHAVE = 'sb_publishable_DOMUkskgKAgVq1qVo1gBrg_FCSti82Q'; // chave públic
 const INTERVALO_MS = 30000;
 
 const est = { token:null, renovador:null, expira:0, regs:[], fotoUrl:Object.create(null), timer:null, buscando:false,
-              mapa:null, camadaPontos:null, vista:'lista', mapaEnquadrado:false };
+              mapa:null, camadaPontos:null, camadaRota:null, vista:'lista', mapaEnquadrado:false,
+              roteiro:Object.create(null), ordemRota:[] };
 
 function $(id){ return document.getElementById(id); }
 function comTimeout(url, opts, ms){
@@ -548,6 +564,7 @@ function montaMapaPainel(){
   est.mapa = L.map('mapaP', {zoomControl:true, layers:[osm]}).setView([-23.54,-46.4], 11);
   L.control.layers({ 'Ruas (OpenStreetMap)': osm, 'Ruas (Esri)': esriRuas, 'Satélite': satelite }, null, {collapsed:false}).addTo(est.mapa);
   est.camadaPontos = L.layerGroup().addTo(est.mapa);
+  est.camadaRota = L.layerGroup().addTo(est.mapa);
 }
 function renderMapa(){
   if(!est.mapa) return;
@@ -562,12 +579,148 @@ function renderMapa(){
     box.appendChild(el('div', null, (r.tipo==='PV'?'PV · Poço de visita':'PI · Poço de inspeção') + ' · ' + fmtData(r.registrado_em)));
     box.appendChild(el('div', null, r.nome + ' · ' + r.empresa));
     box.appendChild(el('div', null, localDe(r)));
+    const ac = el('div','pop-acoes');
     const bt = el('button', 'btn', 'Ver ficha e fotos'); bt.type = 'button';
     bt.onclick = function(){ est.mapa.closePopup(); abreDetalhe(r); };
-    box.appendChild(bt);
+    ac.appendChild(bt);
+    const br = el('button', 'btn claro', est.roteiro[r.protocolo] ? '➖ Tirar do roteiro' : '➕ Adicionar ao roteiro');
+    br.type = 'button';
+    br.onclick = function(){ est.mapa.closePopup(); alternaRoteiro(r.protocolo); };
+    ac.appendChild(br);
+    box.appendChild(ac);
     m.bindPopup(box, {maxWidth: 290});
     m.addTo(est.camadaPontos);
   });
+  desenhaRoteiro();
+}
+
+/* ===== Roteiro: melhor ordem de visita e link do Google Maps ===== */
+function alternaRoteiro(proto){
+  if(est.roteiro[proto]) delete est.roteiro[proto]; else est.roteiro[proto] = true;
+  renderMapa();
+}
+function roteiroTodos(){
+  filtrados().forEach(function(r){ if(r.lat != null && r.lon != null) est.roteiro[r.protocolo] = true; });
+  renderMapa();
+}
+function roteiroLimpar(){
+  est.roteiro = Object.create(null);
+  renderMapa();
+}
+function distKm(a, b){
+  const R = 6371, g = Math.PI/180;
+  const s = Math.sin((b.lat-a.lat)*g/2), t = Math.sin((b.lon-a.lon)*g/2);
+  return 2*R*Math.asin(Math.sqrt(s*s + Math.cos(a.lat*g)*Math.cos(b.lat*g)*t*t));
+}
+function totalKm(ord){
+  let d = 0;
+  for(let i=1; i<ord.length; i++) d += distKm(ord[i-1], ord[i]);
+  return d;
+}
+function ordemRoteiro(pts){
+  if(pts.length <= 2) return pts.slice();
+  // vizinho mais proximo partindo de cada ponto, melhorado com 2-opt; fica com o menor trajeto
+  let melhor = null, melhorKm = Infinity;
+  const inicios = pts.length <= 25 ? pts.length : 10;
+  for(let ini = 0; ini < inicios; ini++){
+    const resta = pts.slice();
+    const ord = [resta.splice(ini, 1)[0]];
+    while(resta.length){
+      let pi = 0, pd = Infinity;
+      for(let i = 0; i < resta.length; i++){
+        const d = distKm(ord[ord.length-1], resta[i]);
+        if(d < pd){ pd = d; pi = i; }
+      }
+      ord.push(resta.splice(pi, 1)[0]);
+    }
+    let trocou = true, voltas = 0;
+    while(trocou && voltas++ < 30){
+      trocou = false;
+      for(let i = 0; i < ord.length-2; i++){
+        for(let j = i+2; j < ord.length-1; j++){
+          if(distKm(ord[i],ord[i+1]) + distKm(ord[j],ord[j+1]) >
+             distKm(ord[i],ord[j]) + distKm(ord[i+1],ord[j+1]) + 1e-9){
+            const seg = ord.slice(i+1, j+1).reverse();
+            for(let k = 0; k < seg.length; k++) ord[i+1+k] = seg[k];
+            trocou = true;
+          }
+        }
+      }
+    }
+    const km = totalKm(ord);
+    if(km < melhorKm){ melhorKm = km; melhor = ord; }
+  }
+  return melhor;
+}
+function desenhaRoteiro(){
+  if(!est.mapa) return;
+  est.camadaRota.clearLayers();
+  const atuais = Object.create(null);
+  est.regs.forEach(function(r){ atuais[r.protocolo] = true; });
+  Object.keys(est.roteiro).forEach(function(p){ if(!atuais[p]) delete est.roteiro[p]; });
+  const pts = est.regs.filter(function(r){ return est.roteiro[r.protocolo] && r.lat != null && r.lon != null; });
+  const tem = pts.length > 0;
+  $('rotAbrir').classList.toggle('oculta', !tem);
+  $('rotCopiar').classList.toggle('oculta', !tem);
+  $('rotLimpar').classList.toggle('oculta', !tem);
+  if(!tem){
+    est.ordemRota = [];
+    $('rotInfo').textContent = 'Toque num pino e use Adicionar ao roteiro, ou adicione todos do filtro.';
+    return;
+  }
+  const ord = ordemRoteiro(pts);
+  est.ordemRota = ord;
+  const partes = Math.ceil(ord.length / 10);
+  $('rotInfo').textContent = ord.length + (ord.length === 1 ? ' parada' : ' paradas na melhor ordem')
+    + ' · aprox. ' + totalKm(ord).toFixed(1).replace('.', ',') + ' km em linha reta'
+    + (partes > 1 ? ' · dividido em ' + partes + ' trechos (limite do Google Maps)' : '');
+  if(ord.length > 1){
+    L.polyline(ord.map(function(r){ return [r.lat, r.lon]; }),
+      {color:'#0093DD', weight:3, opacity:.85, dashArray:'7 7'}).addTo(est.camadaRota);
+  }
+  ord.forEach(function(r, i){
+    L.marker([r.lat, r.lon], {
+      icon: L.divIcon({className:'num-rota', html:'<span>'+(i+1)+'</span>', iconSize:[22,22], iconAnchor:[11,42]}),
+      interactive: false
+    }).addTo(est.camadaRota);
+  });
+}
+function linksRoteiro(){
+  const urls = [];
+  for(let i = 0; i < est.ordemRota.length; i += 10){
+    const grupo = est.ordemRota.slice(i, i + 10); // o Google Maps aceita ate 10 paradas por link
+    const fim = grupo[grupo.length - 1];
+    const meio = grupo.slice(0, -1).map(function(r){ return r.lat + ',' + r.lon; }).join('|');
+    urls.push('https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=' + fim.lat + ',' + fim.lon
+      + (meio ? '&waypoints=' + encodeURIComponent(meio) : ''));
+  }
+  return urls;
+}
+function roteiroAbrir(){
+  const urls = linksRoteiro();
+  if(!urls.length) return;
+  const a = document.createElement('a');
+  a.href = urls[0]; a.target = '_blank'; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function roteiroCopiar(){
+  const urls = linksRoteiro();
+  if(!urls.length) return;
+  const texto = urls.length === 1 ? urls[0]
+    : urls.map(function(u, i){ return 'Trecho ' + (i+1) + ': ' + u; }).join('\n');
+  const b = $('rotCopiar');
+  function feito(ok){
+    b.textContent = ok ? '✅ Copiado' : 'Não deu para copiar';
+    setTimeout(function(){ b.textContent = 'Copiar link'; }, 2500);
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(texto).then(function(){ feito(true); }, function(){ feito(false); });
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = texto; document.body.appendChild(ta); ta.select();
+    let ok = false; try{ ok = document.execCommand('copy'); }catch(e){}
+    ta.remove(); feito(ok);
+  }
 }
 function enquadra(){
   const pts = filtrados().filter(function(r){ return r.lat != null && r.lon != null; })
