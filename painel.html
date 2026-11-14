@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0093DD">
 <meta name="robots" content="noindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com https://dqacgeqkhsqymhlxszct.supabase.co https://cdnjs.cloudflare.com; connect-src https://dqacgeqkhsqymhlxszct.supabase.co; object-src 'none'; base-uri 'none'">
 <title>Painel - Monitoramento Fator K - ETE Suzano</title>
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">
@@ -13,13 +14,15 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <style>
   :root{
-    --ink:#0B1F33; --papel:#EEF2F4; --branco:#fff; --fio:#DCE1E4; --muted:#3D4954; --sutil:#5F6B75;
-    --sabesp:#0093DD; --acento:#0072AD; --agua-bg:#E5F4FC; --ok:#1E7B34; --erro:#C0392B;
+    --ink:#0B1F33; --papel:#F2F5F6; --branco:#fff; --fio:#DCE1E4; --borda-campo:#85929C; --muted:#3D4954; --sutil:#5F6B75;
+    --sabesp:#0093DD; --acento:#0072AD; --agua-bg:#E5F4FC; --hover:#F2F7FB; --selecao:#EAF5FC; --ok:#1E7B34; --erro:#C0392B;
+    --alerta:#8A5A00; --alerta-bg:#FFF1D6; --alerta-fio:#C9720E;
     --display:"Archivo",system-ui,sans-serif; --texto:"IBM Plex Sans",system-ui,sans-serif;
   }
   *{box-sizing:border-box}
   html,body{margin:0;min-height:100%}
   body{font:15px/1.5 var(--texto);color:var(--ink);background:var(--papel)}
+  :focus-visible{outline:2px solid var(--acento);outline-offset:2px}
   header{background:var(--branco);border-bottom:4px solid var(--sabesp);position:sticky;top:0;z-index:5}
   .cab-in{max-width:1280px;margin:0 auto;padding:13px 22px 11px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
   h1{font:800 21px/1.1 var(--display);margin:0;letter-spacing:-.01em}
@@ -27,10 +30,12 @@
   .cab-dir{margin-left:auto;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
   .hora{font-size:12.5px;color:var(--sutil);font-variant-numeric:tabular-nums}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 15px;border:0;border-radius:10px;background:var(--acento);color:#fff;font:600 14px var(--texto);cursor:pointer;white-space:nowrap}
+  .btn:hover{filter:brightness(1.08)}
   .btn:active{filter:brightness(.92)}
   .btn.claro{background:var(--branco);color:var(--acento);border:1.5px solid var(--acento)}
   .btn.neutro{background:var(--branco);color:var(--muted);border:1.5px solid var(--fio)}
-  .btn[disabled]{opacity:.6;cursor:wait}
+  .btn.claro:hover,.btn.neutro:hover{filter:none;background:var(--agua-bg)}
+  .btn[disabled]{opacity:1;filter:none;background:#5F6B75;color:#fff;border-color:#5F6B75;cursor:wait}
   main{max-width:1280px;margin:0 auto;padding:16px 22px 40px;display:flex;flex-direction:column;gap:13px}
   /* login */
   .login{max-width:410px;margin:7vh auto 0;background:var(--branco);border:1px solid var(--fio);border-radius:18px;padding:26px;display:flex;flex-direction:column;gap:14px}
@@ -38,7 +43,7 @@
   .login .ajuda{color:var(--sutil);font-size:14px;margin:0}
   label{font-weight:600;font-size:14px;display:block;margin-bottom:5px}
   input,select{font:inherit;color:var(--ink)}
-  input[type=email],input[type=password],input[type=search],input[type=date]{width:100%;padding:12px;border:1.5px solid var(--fio);border-radius:10px;background:var(--branco)}
+  input[type=email],input[type=password],input[type=search],input[type=date]{width:100%;padding:12px;border:1.5px solid var(--borda-campo);border-radius:10px;background:var(--branco)}
   input:focus,select:focus{outline:2px solid var(--acento);border-color:var(--acento)}
   .lembrar{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted)}
   .erro-msg{color:var(--erro);font-size:14px;font-weight:600;display:none}
@@ -61,21 +66,22 @@
   .filtros{display:flex;gap:9px;flex-wrap:wrap;align-items:end}
   .filtros .campo{display:flex;flex-direction:column;gap:4px}
   .filtros .campo label{margin:0;font-size:12.5px;color:var(--sutil)}
-  .filtros select{padding:11px 10px;border:1.5px solid var(--fio);border-radius:10px;background:var(--branco)}
+  .filtros select{padding:11px 10px;border:1.5px solid var(--borda-campo);border-radius:10px;background:var(--branco)}
   .filtros input[type=search]{min-width:230px}
   .filtros .busca{flex:1}
   /* filtro de varias escolhas (cliente, quem registrou) */
   .msel{position:relative}
-  .msel-btn{padding:11px 12px;border:1.5px solid var(--fio);border-radius:10px;background:var(--branco);font:inherit;color:inherit;cursor:pointer;text-align:left;min-width:135px;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .msel-btn{padding:11px 12px;border:1.5px solid var(--borda-campo);border-radius:10px;background:var(--branco);font:inherit;color:inherit;cursor:pointer;text-align:left;min-width:135px;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .msel-btn.ativo{border-color:var(--acento);color:var(--acento);font-weight:600}
   .msel-pop{position:absolute;top:calc(100% + 4px);left:0;z-index:40;background:var(--branco);border:1px solid var(--fio);border-radius:12px;box-shadow:0 10px 30px rgba(11,31,51,.18);min-width:235px;max-height:270px;overflow:auto;padding:6px}
   .msel-item{display:flex;align-items:center;gap:9px;width:100%;border:0;background:none;text-align:left;padding:8px 10px;border-radius:8px;font:inherit;font-size:14px;color:inherit;cursor:pointer}
-  .msel-item:hover{background:#F2F7FB}
+  .msel-item:hover{background:var(--hover)}
   .msel-item input{width:16px;height:16px;flex:0 0 auto;accent-color:var(--acento);pointer-events:none}
   .msel-limpa{font-weight:600;color:var(--acento);border-bottom:1px solid var(--fio);border-radius:8px 8px 0 0;margin-bottom:4px}
-  .aviso-rede{background:#FFF4D6;border:1px solid #E5C877;color:#7a5a00;border-radius:12px;padding:10px 14px;font-size:14px;display:none}
-  .abas{display:flex;gap:0;border:1.5px solid var(--fio);border-radius:11px;overflow:hidden;align-self:flex-start;background:var(--branco)}
+  .aviso-rede{background:var(--alerta-bg);border:1px solid var(--alerta-fio);color:var(--alerta);border-radius:12px;padding:10px 14px;font-size:14px;display:none}
+  .abas{display:flex;gap:0;border:1.5px solid var(--fio);border-radius:10px;overflow:hidden;align-self:flex-start;background:var(--branco)}
   .abas button{border:0;background:var(--branco);color:var(--muted);font:600 14px var(--texto);padding:10px 20px;cursor:pointer}
+  .abas button:not(.ativa):hover{background:var(--hover)}
   .abas button.ativa{background:var(--acento);color:#fff}
   /* z-index:0 prende as camadas internas do Leaflet (ate 1000) dentro do mapa */
   #mapaP{position:relative;z-index:0;height:min(62vh,560px);border-radius:14px;border:1px solid var(--fio);overflow:hidden}
@@ -98,11 +104,13 @@
   .det-sit{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .det-sit-rot{font-size:14px;color:var(--sutil)}
   .sit-btn{border:1.5px solid var(--fio);background:var(--branco);border-radius:999px;padding:6px 13px;font:600 13px var(--texto);color:var(--muted);cursor:pointer}
+  .sit-btn:not(.atual):hover{border-color:var(--acento);color:var(--acento)}
+  .sit-btn[disabled]{opacity:.55;cursor:wait}
   .sit-btn.atual{cursor:default}
   .sit-btn.atual.Registrado{background:#E8F1F8;color:#20536F;border-color:#20536F}
   .sit-btn.atual.Encaminhado{background:#FFF1D6;color:#8A5A00;border-color:#C9720E}
   .sit-btn.atual.Tratado{background:#E2F6E9;color:#1B7A3D;border-color:#1B7A3D}
-  .det-sit-msg{font-size:13px;color:var(--erro)}
+  .det-sit-msg{font-size:13px;color:var(--erro);font-weight:600}
   /* roteiro */
   .bar-roteiro{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--branco);border:1px solid var(--fio);border-radius:14px;padding:10px 14px;margin-bottom:10px}
   .rot-tit{font:700 14px var(--display)}
@@ -111,8 +119,8 @@
   .rot-area{display:grid;grid-template-columns:320px 1fr;gap:10px;align-items:stretch}
   .rot-painel{background:var(--branco);border:1px solid var(--fio);border-radius:14px;overflow:auto;max-height:min(62vh,560px)}
   .rot-item{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;padding:9px 12px;border:0;border-bottom:1px solid #EDF0F2;background:var(--branco);font:inherit;color:inherit;cursor:pointer}
-  .rot-item:hover{background:#F6FAFC}
-  .rot-item.marcado{background:#EAF5FC;box-shadow:inset 3px 0 0 var(--acento)}
+  .rot-item:hover{background:var(--hover)}
+  .rot-item.marcado{background:var(--selecao);box-shadow:inset 3px 0 0 var(--acento)}
   .rot-item input{margin-top:2px;width:17px;height:17px;flex:0 0 auto;accent-color:var(--acento);pointer-events:none}
   .rot-item .rot-tx{min-width:0;flex:1}
   .rot-item .rot-l1{display:flex;align-items:center;gap:7px;font:700 12.5px var(--display)}
@@ -121,9 +129,10 @@
   .rot-vazio{padding:14px;font-size:13.5px;color:var(--sutil)}
   .btn.mini{padding:7px 11px;font-size:12.5px}
   .rot-sub{font-size:13px;color:var(--sutil);font-weight:600}
-  .rot-extra{padding:8px 14px}
-  .rot-mv{display:flex;gap:3px;margin-left:auto;flex:0 0 auto}
-  .mv-btn{border:1px solid var(--fio);background:var(--branco);border-radius:7px;width:28px;height:26px;font-size:11px;cursor:pointer;color:var(--muted);line-height:1;padding:0}
+  .rot-extra{padding:8px 14px;background:var(--papel);box-shadow:none}
+  .rot-mv{display:flex;gap:6px;margin-left:auto;flex:0 0 auto}
+  .mv-btn{border:1px solid var(--fio);background:var(--branco);border-radius:8px;width:38px;height:38px;font-size:14px;cursor:pointer;color:var(--muted);line-height:1;padding:0;position:relative}
+  .mv-btn::before{content:"";position:absolute;inset:-4px}
   .mv-btn:hover{color:var(--acento);border-color:var(--acento)}
   .bandeira{font-size:24px;filter:drop-shadow(0 1px 2px rgba(11,31,51,.45))}
   .rot-links{background:var(--branco);border:1px solid var(--fio);border-radius:14px;padding:12px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px;font-size:13.5px;color:var(--sutil)}
@@ -132,29 +141,32 @@
     .rot-area{grid-template-columns:1fr}
     .rot-painel{max-height:220px;order:2}
   }
+  @media (max-height:800px){
+    #mapaP,.rot-painel{height:min(56vh,480px);max-height:min(56vh,480px)}
+  }
   .num-rota span{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--acento);color:#fff;font:700 12px var(--texto);border:2px solid #fff;box-shadow:0 1px 4px rgba(11,31,51,.4)}
   /* lista */
   .tabela{background:var(--branco);border:1px solid var(--fio);border-radius:14px;overflow:hidden}
-  .cabecalho,.linha{display:grid;grid-template-columns:168px 50px 116px minmax(118px,1fr) minmax(104px,.8fr) minmax(150px,1.4fr) 100px 58px 18px;gap:12px;align-items:center;padding:11px 16px}
+  .cabecalho,.linha{display:grid;grid-template-columns:168px 50px 128px minmax(118px,1fr) minmax(104px,.8fr) minmax(150px,1.3fr) 100px 58px 18px;gap:12px;align-items:center;padding:11px 16px}
   .cabecalho{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--sutil);border-bottom:1px solid var(--fio);background:var(--papel)}
   .linha{width:100%;text-align:left;border:0;border-bottom:1px solid #EDF0F2;background:var(--branco);font:inherit;color:inherit;cursor:pointer}
   .linha:last-child{border-bottom:0}
-  .linha:hover{background:#F6FAFC}
+  .linha:hover{background:var(--hover)}
   .linha:focus-visible{outline:2px solid var(--acento);outline-offset:-2px}
-  .linha.nova{background:#F0F9FF}
+  .linha.nova{background:var(--selecao)}
   .c-proto{font:700 13px/1.2 var(--display);letter-spacing:.01em;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0;white-space:nowrap}
   .proto-tx{max-width:100%;overflow:hidden;text-overflow:ellipsis}
   .selo-novo{background:var(--acento);color:#fff;font-size:11px;font-weight:700;border-radius:6px;padding:1.5px 7px;letter-spacing:.05em}
   .linha.nova{box-shadow:inset 3px 0 0 var(--sabesp)}
-  .chip{font-weight:700;font-size:12px;border-radius:7px;padding:3px 0;text-align:center}
+  .chip{font-weight:700;font-size:12px;border-radius:8px;padding:3px 0;text-align:center}
   .chip.PV{background:#F5EDE2;color:#7A4E20}
   .chip.PI{background:#E8ECF0;color:#3D4954}
-  .c-quando{color:var(--sutil);font-size:13px;font-variant-numeric:tabular-nums}
+  .c-quando{color:var(--sutil);font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
   .c-quem,.c-cliente,.c-local{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
   .c-quem{font-weight:600}
   .c-cliente{font-weight:600;color:var(--acento)}
   .c-fotos{color:var(--sutil);font-size:13px;text-align:center;white-space:nowrap}
-  .c-seta{color:#B9C4CB;font-size:17px;text-align:right}
+  .c-seta{color:#8A98A2;font-size:17px;text-align:right}
   .rotulo-m{display:none}
   .vazio{text-align:center;color:var(--sutil);padding:40px 0}
   /* detalhe */
@@ -163,7 +175,7 @@
   .det-cab{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .det-cab .proto{font:800 19px var(--display);letter-spacing:.02em}
   .det-cab .chip{padding:3px 10px}
-  .fechar{margin-left:auto;background:var(--papel);border:0;border-radius:50%;width:36px;height:36px;font-size:16px;cursor:pointer;color:var(--muted)}
+  .fechar{margin-left:auto;background:var(--papel);border:0;border-radius:50%;width:44px;height:44px;font-size:16px;cursor:pointer;color:var(--muted)}
   .det-campos{display:grid;grid-template-columns:118px 1fr;gap:6px 14px;font-size:14.5px;margin:0}
   .det-campos dt{color:var(--sutil)}
   .det-campos dd{margin:0;min-width:0;overflow-wrap:anywhere}
@@ -190,6 +202,8 @@
     .c-seta{display:none}
     .det-campos{grid-template-columns:1fr}
     .det-campos dt{margin-top:6px}
+    .sit-btn{padding:11px 16px}
+    .msel-item{padding:12px 10px}
   }
 </style>
 </head>
@@ -287,22 +301,22 @@
     </div>
     <div class="campo">
       <label for="fDe">De</label>
-      <input type="date" id="fDe" onchange="render()">
+      <input type="date" id="fDe" onchange="carrega(true)">
     </div>
     <div class="campo">
       <label for="fAte">Até</label>
-      <input type="date" id="fAte" onchange="render()">
+      <input type="date" id="fAte" onchange="carrega(true)">
     </div>
     <div class="campo busca">
       <label for="fBusca">Buscar</label>
-      <input type="search" id="fBusca" placeholder="Nome, cliente, local ou protocolo…" oninput="render()">
+      <input type="search" id="fBusca" placeholder="Nome, cliente, local ou protocolo…" oninput="buscaMudou()">
     </div>
   </div>
-  <div class="aviso-rede" id="avisoRede">⚠️ Sem conexão com o banco agora. Tentando de novo em instantes…</div>
-  <div class="aviso-rede" id="avisoLimite">⚠️ Mostrando os 1000 registros mais recentes. Use os filtros de data para ver os antigos.</div>
+  <div class="aviso-rede" id="avisoRede">⚠️ Sem conexão com o sistema agora. Tentando de novo em instantes…</div>
+  <div class="aviso-rede" id="avisoLimite">⚠️ Mostrando os 1000 registros mais recentes. Aperte o período nos campos De e Até para carregar os antigos.</div>
   <div class="abas" role="tablist">
     <button type="button" id="abaLista" class="ativa" role="tab" aria-selected="true" onclick="mostraVista('lista')">Lista</button>
-    <button type="button" id="abaMapa" role="tab" aria-selected="false" onclick="mostraVista('mapa')">Mapa</button>
+    <button type="button" id="abaMapa" role="tab" aria-selected="false" onclick="mostraVista('mapa')">Mapa e roteiro</button>
   </div>
   <div id="vistaLista">
     <div class="tabela">
@@ -348,7 +362,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.18 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.19 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -356,11 +370,15 @@ const URL_BASE = 'https://dqacgeqkhsqymhlxszct.supabase.co';
 const CHAVE = 'sb_publishable_DOMUkskgKAgVq1qVo1gBrg_FCSti82Q'; // chave pública (a mesma do app)
 const INTERVALO_MS = 30000;
 
-const est = { token:null, renovador:null, expira:0, regs:[], fotoUrl:Object.create(null), timer:null, buscando:false,
-              mapa:null, camadaPontos:null, camadaRota:null, vista:'lista', mapaEnquadrado:false,
+const est = { token:null, renovador:null, expira:0, regs:[], totalConsulta:null, fotoUrl:Object.create(null), timer:null, buscando:false,
+              mapa:null, camadaPontos:null, camadaRota:null, vista:'lista', popupAberto:null,
               roteiro:Object.create(null), ordemRota:[],
               origem:null, volta:null, modoDefinir:null, ordemManual:null,
               selCliente:Object.create(null), selQuem:Object.create(null) };
+const SITUACOES = ['Registrado','Encaminhado','Tratado'];
+function sitDe(r){ return SITUACOES.indexOf(r.situacao) >= 0 ? r.situacao : 'Registrado'; }
+let buscaTimer = null;
+function buscaMudou(){ if(buscaTimer) clearTimeout(buscaTimer); buscaTimer = setTimeout(render, 250); }
 
 function $(id){ return document.getElementById(id); }
 function comTimeout(url, opts, ms){
@@ -392,9 +410,11 @@ function entrar(){
     .then(function(d){ guardaSessao(d); abrePainel(); })
     .catch(function(e){
       const el = $('erroLogin');
-      el.textContent = (typeof e === 'number')
+      el.textContent = (e === 400 || e === 401)
         ? 'E-mail ou senha incorretos. Confira e tente de novo.'
-        : 'Sem conexão com o servidor. Verifique a internet e tente de novo.';
+        : (typeof e === 'number')
+          ? 'O servidor não respondeu agora (erro ' + e + '). Aguarde um instante e tente de novo.'
+          : 'Sem conexão com o servidor. Verifique a internet e tente de novo.';
       el.style.display = 'block';
     })
     .finally(function(){ btn.disabled = false; btn.textContent = 'Entrar'; });
@@ -402,7 +422,8 @@ function entrar(){
 let renovando = null; // uma renovação por vez (chamadas simultâneas esperam a mesma)
 function renovar(){
   if(renovando) return renovando;
-  const rt = est.renovador || (function(){ try{ return localStorage.getItem('pvpi_painel_rt'); }catch(e){ return null; } })();
+  // o localStorage vem primeiro: se outra aba do painel já renovou, usamos o token mais novo dela
+  const rt = (function(){ try{ return localStorage.getItem('pvpi_painel_rt'); }catch(e){ return null; } })() || est.renovador;
   if(!rt) return Promise.reject('sem renovador');
   renovando = comTimeout(URL_BASE + '/auth/v1/token?grant_type=refresh_token', {
     method:'POST', headers:{ 'apikey':CHAVE, 'Content-Type':'application/json' },
@@ -453,14 +474,37 @@ function abrePainel(){
   if(est.timer) clearInterval(est.timer);
   est.timer = setInterval(function(){ carrega(false); }, INTERVALO_MS);
 }
+function consultaRegistros(){
+  // as datas vao na PROPRIA consulta: registros antigos (alem dos 1000 mais recentes) ficam alcancaveis
+  let q = '/rest/v1/registros?select=*&order=registrado_em.desc&limit=1000';
+  const de = $('fDe').value, ate = $('fAte').value;
+  if(de) q += '&registrado_em=gte.' + de + 'T00:00:00-03:00';
+  if(ate){
+    const d = new Date(ate + 'T12:00:00');
+    d.setDate(d.getDate() + 1); // dia seguinte, exclusivo: pega o dia "ate" inteiro
+    q += '&registrado_em=lt.' + d.getFullYear() + '-' + p2(d.getMonth()+1) + '-' + p2(d.getDate()) + 'T00:00:00-03:00';
+  }
+  return q;
+}
 function carrega(manual){
   if(est.buscando) return; est.buscando = true;
-  if(manual){ const b=$('btnAtualiza'); b.disabled=true; setTimeout(function(){ b.disabled=false; }, 800); }
-  chama('/rest/v1/registros?select=*&order=registrado_em.desc&limit=1000')
-    .then(r => r.ok ? r.json() : Promise.reject('HTTP '+r.status))
+  const b = $('btnAtualiza');
+  if(manual){ b.disabled = true; b.textContent = 'Atualizando…'; }
+  chama(consultaRegistros(), { headers:{ 'Prefer':'count=exact' } })
+    .then(function(r){
+      if(!r.ok) return Promise.reject('HTTP '+r.status);
+      const cr = r.headers.get('content-range') || '';
+      const total = parseInt(cr.split('/')[1], 10);
+      est.totalConsulta = isNaN(total) ? null : total;
+      return r.json();
+    })
     .then(function(dados){
       $('avisoRede').style.display = 'none';
-      $('avisoLimite').style.display = (dados.length === 1000) ? 'block' : 'none';
+      const cortado = dados.length === 1000 && est.totalConsulta && est.totalConsulta > 1000;
+      $('avisoLimite').textContent = cortado
+        ? '⚠️ O período tem ' + est.totalConsulta + ' registros; mostrando os 1000 mais recentes. Aperte o período nos campos De e Até para ver os demais.'
+        : '';
+      $('avisoLimite').style.display = cortado ? 'block' : 'none';
       est.regs = dados;
       montaOpcoesFiltro();
       const ag = new Date();
@@ -479,7 +523,10 @@ function carrega(manual){
       $('avisoRede').style.display = 'block';
       console.error(e);
     })
-    .finally(function(){ est.buscando = false; });
+    .finally(function(){
+      est.buscando = false;
+      b.disabled = false; b.textContent = 'Atualizar';
+    });
 }
 /* ===== Apoio ===== */
 // NOVO = registrado nas ultimas 24 horas (regra fixa pela data e hora do registro)
@@ -491,18 +538,22 @@ try{ localStorage.removeItem('pvpi_vistos'); }catch(e){} // regra antiga por cli
 function p2(n){ return String(n).padStart(2,'0'); }
 function paraData(iso){
   // aceita também o formato com espaço e fuso curto ('2026-11-11 00:16:36+00'), que o Safari recusa
+  if(iso == null) return null;
   if(typeof iso === 'string'){
     iso = iso.replace(' ', 'T');
     if(/[+\-]\d{2}$/.test(iso)) iso += ':00';
   }
-  return new Date(iso);
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d;
 }
 function fmtData(iso){
   const d = paraData(iso);
+  if(!d) return 'sem data';
   return p2(d.getDate())+'/'+p2(d.getMonth()+1)+'/'+d.getFullYear()+' '+p2(d.getHours())+':'+p2(d.getMinutes());
 }
 function dataLocal(iso){
   const d = paraData(iso);
+  if(!d) return '';
   return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
 }
 function localDe(r){
@@ -518,7 +569,7 @@ function filtrados(){
   const nQuem = Object.keys(est.selQuem).length;
   return est.regs.filter(function(r){
     if(tipo && r.tipo !== tipo) return false;
-    if(sit && (r.situacao || 'Registrado') !== sit) return false;
+    if(sit && sitDe(r) !== sit) return false;
     if(nCli && !est.selCliente[r.empresa]) return false;
     if(nQuem && !est.selQuem[r.nome]) return false;
     const dl = dataLocal(r.registrado_em);
@@ -533,6 +584,11 @@ function filtrados(){
 // Cliente e Quem registrou: caixas onde da para marcar VARIAS opcoes ao mesmo tempo.
 // As listas vem do que existe no banco e a escolha atual e preservada a cada atualizacao.
 function montaOpcoesFiltro(){
+  // com um popup aberto sob o mouse, reconstruir moveria o item na hora do clique
+  if(!$('popCliente').classList.contains('oculta') || !$('popQuem').classList.contains('oculta')){
+    rotuloMsel();
+    return;
+  }
   [['Cliente','empresa','selCliente'],['Quem','nome','selQuem']].forEach(function(par){
     const pop = $('pop' + par[0]);
     const escolha = est[par[2]];
@@ -592,13 +648,13 @@ function render(){
   const pv = est.regs.filter(r=>r.tipo==='PV').length;
   const hoje = est.regs.filter(r=>dataLocal(r.registrado_em)===dataLocal(new Date().toISOString())).length;
   const fotos = est.regs.reduce(function(s,r){ return s + ((r.fotos&&r.fotos.length)||0); }, 0);
-  $('kTot').textContent = est.regs.length;
+  $('kTot').textContent = est.totalConsulta != null ? est.totalConsulta : est.regs.length;
   $('kPv').textContent = pv;
   $('kPi').textContent = est.regs.length - pv;
   $('kHoje').textContent = hoje;
   $('kFotos').textContent = fotos;
-  $('kTrat').textContent = est.regs.filter(function(r){ return r.situacao === 'Tratado'; }).length;
-  const filtrando = $('fTipo').value || $('fSituacao').value || Object.keys(est.selCliente).length || Object.keys(est.selQuem).length || $('fDe').value || $('fAte').value || $('fBusca').value.trim();
+  $('kTrat').textContent = est.regs.filter(function(r){ return sitDe(r) === 'Tratado'; }).length;
+  const filtrando = temFiltro();
   $('kFiltro').textContent = lista.length;
   $('cardFiltro').classList.toggle('oculta', !filtrando);
   if(est.vista === 'mapa') renderMapa();
@@ -608,7 +664,7 @@ function render(){
     : 'Nenhum registro encontrado com esse filtro. Limpe os filtros acima para ver tudo.';
   $('vazio').classList.toggle('oculta', lista.length > 0);
   lista.forEach(function(r){
-    const novo = ehNovo(r.registrado_em);
+    const novo = ehNovo(r.registrado_em) && sitDe(r) !== 'Tratado'; // Tratado já saiu da fila: não é mais "novo"
     const linha = el('button','linha' + (novo ? ' nova' : ''));
     linha.type = 'button';
     linha.onclick = function(){ abreDetalhe(r); };
@@ -627,7 +683,7 @@ function render(){
     linha.appendChild(el('span','c-quem', r.nome));
     linha.appendChild(el('span','c-cliente', r.empresa));
     linha.appendChild(el('span','c-local', localDe(r)));
-    linha.appendChild(el('span','sit c-sit ' + (r.situacao || 'Registrado'), r.situacao || 'Registrado'));
+    linha.appendChild(el('span','sit c-sit ' + sitDe(r), sitDe(r)));
     linha.appendChild(el('span','c-fotos', '📷 ' + ((r.fotos&&r.fotos.length)||0)));
     linha.appendChild(el('span','c-seta','›'));
     g.appendChild(linha);
@@ -653,8 +709,8 @@ function abreDetalhe(r){
   d.appendChild(dl);
   const stB = el('div','det-sit');
   stB.appendChild(el('span','det-sit-rot','Situação:'));
-  ['Registrado','Encaminhado','Tratado'].forEach(function(s){
-    const atual = (r.situacao || 'Registrado') === s;
+  SITUACOES.forEach(function(s){
+    const atual = sitDe(r) === s;
     const b = el('button','sit-btn ' + s + (atual ? ' atual' : ''), s);
     b.type = 'button';
     if(!atual) b.onclick = function(){ mudaSituacao(r, s); };
@@ -687,18 +743,36 @@ function abreDetalhe(r){
   d.setAttribute('tabindex','-1'); d.focus();
 }
 function mudaSituacao(r, nova){
+  document.querySelectorAll('.det-sit .sit-btn').forEach(function(b){ b.disabled = true; });
+  const m0 = document.querySelector('.det-sit-msg');
+  if(m0){ m0.style.color = 'var(--sutil)'; m0.textContent = 'Salvando…'; }
   chama('/rest/v1/registros?protocolo=eq.' + encodeURIComponent(r.protocolo), {
     method:'PATCH',
     headers:{ 'Content-Type':'application/json', 'Prefer':'return=minimal' },
     body: JSON.stringify({ situacao: nova })
   }).then(function(resp){
-    if(!resp.ok) throw 0;
-    r.situacao = nova;
+    if(!resp.ok) throw 'HTTP ' + resp.status;
+    // atualiza o registro que esta NA LISTA (r pode ter vindo de um balao antigo do mapa)
+    const atual = est.regs.find(function(x){ return x.protocolo === r.protocolo; }) || r;
+    atual.situacao = nova; r.situacao = nova;
     render();
-    abreDetalhe(r); // redesenha a ficha ja com a situacao nova
-  }).catch(function(){
+    abreDetalhe(atual); // redesenha a ficha ja com a situacao nova
     const m = document.querySelector('.det-sit-msg');
-    if(m) m.textContent = 'Não deu para salvar agora. Verifique a internet e tente de novo.';
+    if(m){
+      m.style.color = 'var(--ok)'; m.textContent = '✔ Salvo';
+      setTimeout(function(){ if(m.textContent === '✔ Salvo') m.textContent = ''; }, 2500);
+    }
+  }).catch(function(e){
+    if(/renovador|sessao encerrada/.test(String(e))){
+      const el2 = $('erroLogin');
+      el2.textContent = 'Sua sessão terminou. Entre de novo para continuar.';
+      el2.style.display = 'block';
+      sair();
+      return;
+    }
+    document.querySelectorAll('.det-sit .sit-btn').forEach(function(b){ b.disabled = false; });
+    const m = document.querySelector('.det-sit-msg');
+    if(m){ m.style.color = 'var(--erro)'; m.textContent = 'Não deu para salvar agora. Verifique a internet e tente de novo.'; }
   });
 }
 function fechaDetalhe(){ $('fundo').classList.add('oculta'); }
@@ -755,18 +829,22 @@ function montaMapaPainel(){
 }
 function renderMapa(){
   if(!est.mapa) return;
-  // não redesenha com um balão aberto (o refresh de 30 s fecharia no meio da leitura)
-  if(est.mapa._popup && est.mapa._popup.isOpen && est.mapa._popup.isOpen()) return;
+  // se um balão estava aberto, o redesenho reabre o MESMO balão (o refresh de 30 s não fecha a leitura)
+  const reabrir = est.popupAberto;
+  const marcadores = Object.create(null);
   est.camadaPontos.clearLayers();
   filtrados().forEach(function(r){
     if(r.lat == null || r.lon == null) return;
     const m = L.marker([r.lat, r.lon], { icon: r.tipo==='PV' ? PINO_PV : PINO_PI });
+    marcadores[r.protocolo] = m;
+    m.on('popupopen', function(){ est.popupAberto = r.protocolo; });
+    m.on('popupclose', function(){ if(est.popupAberto === r.protocolo) est.popupAberto = null; });
     const box = document.createElement('div'); box.className = 'pop-ficha';
     box.appendChild(el('b', null, r.protocolo));
     box.appendChild(el('div', null, (r.tipo==='PV'?'PV · Poço de visita':'PI · Poço de inspeção') + ' · ' + fmtData(r.registrado_em)));
     box.appendChild(el('div', null, r.nome + ' · ' + r.empresa));
     box.appendChild(el('div', null, localDe(r)));
-    box.appendChild(el('span','sit pop-sit ' + (r.situacao || 'Registrado'), r.situacao || 'Registrado'));
+    box.appendChild(el('span','sit pop-sit ' + sitDe(r), sitDe(r)));
     const ac = el('div','pop-acoes');
     const bt = el('button', 'btn', 'Ver ficha e fotos'); bt.type = 'button';
     bt.onclick = function(){ est.mapa.closePopup(); abreDetalhe(r); };
@@ -777,9 +855,10 @@ function renderMapa(){
     ac.appendChild(br);
     box.appendChild(ac);
     m.bindPopup(box, {maxWidth: 290});
-    if(r.situacao === 'Tratado') m.setOpacity(.45);
+    if(sitDe(r) === 'Tratado') m.setOpacity(.45);
     m.addTo(est.camadaPontos);
   });
+  if(reabrir && marcadores[reabrir]) marcadores[reabrir].openPopup();
   desenhaRoteiro();
 }
 
@@ -809,11 +888,6 @@ function distKm(a, b){
   const s = Math.sin((b.lat-a.lat)*g/2), t = Math.sin((b.lon-a.lon)*g/2);
   return 2*R*Math.asin(Math.sqrt(s*s + Math.cos(a.lat*g)*Math.cos(b.lat*g)*t*t));
 }
-function totalKm(ord){
-  let d = 0;
-  for(let i=1; i<ord.length; i++) d += distKm(ord[i-1], ord[i]);
-  return d;
-}
 function kmRota(ord){
   // distancia do trajeto inteiro, contando a saida e a volta quando marcadas
   if(!ord.length) return 0;
@@ -826,6 +900,18 @@ function ordemRoteiro(pts){
   // vizinho mais proximo + 2-opt, ancorado na saida e na volta quando marcadas
   const origem = est.origem, volta = est.volta;
   if(pts.length <= 1) return pts.slice();
+  if(pts.length > 120){
+    // roteiro gigante: so o vizinho mais proximo (o refinamento 2-opt travaria o navegador)
+    const resta = pts.slice(), ord = [];
+    let ultimo = origem || resta[0];
+    if(!origem) ord.push(resta.shift());
+    while(resta.length){
+      let pi = 0, pd = Infinity;
+      for(let i = 0; i < resta.length; i++){ const d = distKm(ord.length ? ord[ord.length-1] : ultimo, resta[i]); if(d < pd){ pd = d; pi = i; } }
+      ord.push(resta.splice(pi, 1)[0]);
+    }
+    return ord;
+  }
   function doisOpt(ord){
     let trocou = true, voltasLoop = 0;
     while(trocou && voltasLoop++ < 40){
@@ -903,17 +989,15 @@ function montaRotLista(){
   const lista = filtrados();
   const comPonto = lista.filter(function(r){ return r.lat != null && r.lon != null; });
   const semPonto = lista.length - comPonto.length;
-  if(!comPonto.length){
-    g.appendChild(el('div','rot-vazio','Nenhum ponto no filtro para montar roteiro.'));
-    return;
-  }
   const posicao = Object.create(null);
   est.ordemRota.forEach(function(r, i){ posicao[r.protocolo] = i + 1; });
-  comPonto.forEach(function(r){
+  function itemDe(r){
     const marcado = !!est.roteiro[r.protocolo];
-    const it = el('button','rot-item' + (marcado ? ' marcado' : ''));
-    it.type = 'button';
-    it.onclick = function(){ alternaRoteiro(r.protocolo); };
+    const it = el('div','rot-item' + (marcado ? ' marcado' : ''));
+    it.setAttribute('role','button'); it.tabIndex = 0;
+    function alterna(){ alternaRoteiro(r.protocolo); }
+    it.onclick = alterna;
+    it.onkeydown = function(ev){ if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); alterna(); } };
     const cx = document.createElement('input');
     cx.type = 'checkbox'; cx.checked = marcado; cx.tabIndex = -1;
     it.appendChild(cx);
@@ -922,7 +1006,9 @@ function montaRotLista(){
     if(posicao[r.protocolo]) l1.appendChild(el('span','ordem', posicao[r.protocolo]));
     l1.appendChild(el('span', null, r.protocolo));
     tx.appendChild(l1);
-    tx.appendChild(el('span','rot-l2', r.empresa + ' · ' + localDe(r)));
+    const l2 = el('span','rot-l2', r.empresa + ' · ' + localDe(r));
+    l2.title = r.empresa + ' · ' + localDe(r);
+    tx.appendChild(l2);
     it.appendChild(tx);
     if(posicao[r.protocolo] && est.ordemRota.length > 1){
       const mv = el('span','rot-mv');
@@ -933,18 +1019,36 @@ function montaRotLista(){
       mv.appendChild(sobe); mv.appendChild(desce);
       it.appendChild(mv);
     }
-    g.appendChild(it);
+    return it;
+  }
+  // pontos marcados que o filtro atual escondeu: continuam no roteiro, entao continuam visiveis aqui
+  const noFiltro = Object.create(null);
+  comPonto.forEach(function(r){ noFiltro[r.protocolo] = true; });
+  const fora = est.regs.filter(function(r){
+    return est.roteiro[r.protocolo] && !noFiltro[r.protocolo] && r.lat != null && r.lon != null;
   });
+  if(!comPonto.length && !fora.length){
+    g.appendChild(el('div','rot-vazio','Nenhum ponto no filtro para montar roteiro.'));
+    return;
+  }
+  comPonto.forEach(function(r){ g.appendChild(itemDe(r)); });
+  if(fora.length){
+    g.appendChild(el('div','rot-vazio','No roteiro, mas fora do filtro atual (toque para tirar):'));
+    fora.forEach(function(r){ g.appendChild(itemDe(r)); });
+  }
   if(semPonto > 0){
     g.appendChild(el('div','rot-vazio', semPonto + (semPonto === 1 ? ' registro do filtro veio' : ' registros do filtro vieram') + ' sem ponto no mapa e não ' + (semPonto === 1 ? 'entra' : 'entram') + ' no roteiro.'));
   }
 }
+let ordemCache = { chave:null, protos:null };
 function desenhaRoteiro(){
   if(!est.mapa) return;
   est.camadaRota.clearLayers();
   const atuais = Object.create(null);
   est.regs.forEach(function(r){ atuais[r.protocolo] = true; });
   Object.keys(est.roteiro).forEach(function(p){ if(!atuais[p]) delete est.roteiro[p]; });
+  const nMarc = Object.keys(est.roteiro).length;
+  $('abaMapa').textContent = 'Mapa e roteiro' + (nMarc ? ' (' + nMarc + ')' : '');
   const pts = est.regs.filter(function(r){ return est.roteiro[r.protocolo] && r.lat != null && r.lon != null; });
   const tem = pts.length > 0;
   $('rotAbrir').classList.toggle('oculta', !tem);
@@ -954,21 +1058,30 @@ function desenhaRoteiro(){
   atualizaBotoesPonto();
   if(!tem){
     est.ordemRota = [];
-    $('rotInfo').textContent = 'Marque os pontos na lista ao lado do mapa.';
+    $('rotInfo').textContent = 'Marque os pontos na lista ao lado do mapa.'
+      + ((est.origem || est.volta) ? ' Saída e volta de antes continuam marcadas.' : '');
     $('rotLinks').classList.add('oculta');
     montaRotLista();
     return;
   }
+  const porProto = Object.create(null);
+  pts.forEach(function(r){ porProto[r.protocolo] = r; });
   let ord;
   if(est.ordemManual){
     // respeita a ordem que a pessoa ajustou (pontos novos ficam no fim)
-    const porProto = Object.create(null);
-    pts.forEach(function(r){ porProto[r.protocolo] = r; });
     est.ordemManual = est.ordemManual.filter(function(p){ return porProto[p]; });
     pts.forEach(function(r){ if(est.ordemManual.indexOf(r.protocolo) < 0) est.ordemManual.push(r.protocolo); });
     ord = est.ordemManual.map(function(p){ return porProto[p]; });
   } else {
-    ord = ordemRoteiro(pts);
+    // a melhor ordem so e recalculada quando o CONJUNTO de pontos, a saida ou a volta mudam
+    const chave = pts.map(function(r){ return r.protocolo; }).sort().join('|')
+      + '#' + JSON.stringify(est.origem) + JSON.stringify(est.volta);
+    if(ordemCache.chave === chave){
+      ord = ordemCache.protos.map(function(p){ return porProto[p]; });
+    } else {
+      ord = ordemRoteiro(pts);
+      ordemCache = { chave: chave, protos: ord.map(function(r){ return r.protocolo; }) };
+    }
   }
   est.ordemRota = ord;
   const totalLink = ord.length + (est.volta ? 1 : 0);
@@ -1030,11 +1143,30 @@ function roteiroAbrir(){
   a.href = urls[0]; a.target = '_blank'; a.rel = 'noopener';
   document.body.appendChild(a); a.click(); a.remove();
 }
+function textoRoteiro(urls){
+  // mensagem pronta para o WhatsApp: a equipe ve QUAL parada e qual, nao so coordenadas
+  const ag = new Date();
+  const lin = ['Roteiro Fator K ' + p2(ag.getDate()) + '/' + p2(ag.getMonth()+1) + ' · '
+    + est.ordemRota.length + (est.ordemRota.length === 1 ? ' parada' : ' paradas')
+    + ' · aprox. ' + kmRota(est.ordemRota).toFixed(1).replace('.', ',') + ' km'];
+  est.ordemRota.forEach(function(r, i){ lin.push((i+1) + '. ' + r.protocolo + ' · ' + localDe(r)); });
+  if(est.volta) lin.push('No fim do trajeto, volta ao ponto marcado.');
+  lin.push('');
+  if(urls.length === 1){
+    lin.push('Rota no Google Maps: ' + urls[0]);
+  } else {
+    urls.forEach(function(u, i){
+      const ini = i*10 + 1;
+      const fim = Math.min((i+1)*10, est.ordemRota.length);
+      lin.push('Trecho ' + (i+1) + ' (paradas ' + ini + (fim > ini ? ' a ' + fim : '') + '): ' + u);
+    });
+  }
+  return lin.join('\n');
+}
 function roteiroCopiar(){
   const urls = linksRoteiro();
   if(!urls.length) return;
-  const texto = urls.length === 1 ? urls[0]
-    : urls.map(function(u, i){ return 'Trecho ' + (i+1) + ': ' + u; }).join('\n');
+  const texto = textoRoteiro(urls);
   const b = $('rotCopiar');
   function feito(ok){
     if(ok){
@@ -1086,9 +1218,13 @@ function urlFoto(caminho){
 }
 
 /* ===== Planilha (CSV que o Excel abre direto) ===== */
+function temFiltro(){
+  return !!($('fTipo').value || $('fSituacao').value || Object.keys(est.selCliente).length
+    || Object.keys(est.selQuem).length || $('fDe').value || $('fAte').value || $('fBusca').value.trim());
+}
 function exportaPlanilha(){
   const lista = filtrados();
-  const filtrando = $('fTipo').value || $('fDe').value || $('fAte').value || $('fBusca').value.trim();
+  const filtrando = temFiltro();
   if(!lista.length){ alert('Nada para exportar com o filtro atual. Limpe os filtros e tente de novo.'); return; }
   if(filtrando && !confirm('Você vai exportar só os '+lista.length+' registros do filtro atual. Continuar?')) return;
   function cel(v){
@@ -1099,7 +1235,7 @@ function exportaPlanilha(){
   const linhas = [['Protocolo','Tipo','Situação','Nome','Cliente','Data e hora','Local','Nº referência','Observação','Qtd fotos','Link do mapa','Latitude','Longitude'].map(cel).join(';')];
   lista.forEach(function(r){
     linhas.push([
-      r.protocolo, r.tipo, r.situacao || 'Registrado', r.nome, r.empresa, fmtData(r.registrado_em),
+      r.protocolo, r.tipo, sitDe(r), r.nome, r.empresa, fmtData(r.registrado_em),
       r.endereco || '', r.num_referencia || '', r.observacao || '',
       (r.fotos&&r.fotos.length)||0,
       (r.lat != null && r.lon != null) ? 'https://maps.google.com/?q='+r.lat+','+r.lon : '',
@@ -1122,6 +1258,7 @@ function exportaPlanilha(){
   try{ rt = localStorage.getItem('pvpi_painel_rt'); }catch(e){}
   if(rt){ renovar().then(abrePainel).catch(function(){ /* fica na tela de login */ }); }
   $('senha').addEventListener('keydown', function(e){ if(e.key==='Enter') entrar(); });
+  $('email').addEventListener('keydown', function(e){ if(e.key==='Enter') entrar(); });
 })();
 </script>
 </body>
