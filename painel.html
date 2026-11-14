@@ -99,6 +99,21 @@
   .rot-tit{font:700 14px var(--display)}
   .rot-info{font-size:13.5px;color:var(--sutil)}
   .bar-roteiro .btn{padding:8px 12px;font-size:13.5px}
+  .rot-area{display:grid;grid-template-columns:320px 1fr;gap:10px;align-items:stretch}
+  .rot-painel{background:var(--branco);border:1px solid var(--fio);border-radius:14px;overflow:auto;max-height:min(62vh,560px)}
+  .rot-item{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;padding:9px 12px;border:0;border-bottom:1px solid #EDF0F2;background:var(--branco);font:inherit;color:inherit;cursor:pointer}
+  .rot-item:hover{background:#F6FAFC}
+  .rot-item.marcado{background:#EAF5FC;box-shadow:inset 3px 0 0 var(--acento)}
+  .rot-item input{margin-top:2px;width:17px;height:17px;flex:0 0 auto;accent-color:var(--acento);pointer-events:none}
+  .rot-item .rot-tx{min-width:0;flex:1}
+  .rot-item .rot-l1{display:flex;align-items:center;gap:7px;font:700 12.5px var(--display)}
+  .rot-item .rot-l2{font-size:12.5px;color:var(--sutil);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rot-item .ordem{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;border-radius:50%;background:var(--acento);color:#fff;font:700 11.5px var(--texto);flex:0 0 auto}
+  .rot-vazio{padding:14px;font-size:13.5px;color:var(--sutil)}
+  @media (max-width:860px){
+    .rot-area{grid-template-columns:1fr}
+    .rot-painel{max-height:220px;order:2}
+  }
   .num-rota span{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--acento);color:#fff;font:700 12px var(--texto);border:2px solid #fff;box-shadow:0 1px 4px rgba(11,31,51,.4)}
   /* lista */
   .tabela{background:var(--branco);border:1px solid var(--fio);border-radius:14px;overflow:hidden}
@@ -271,13 +286,16 @@
   <div id="vistaMapa" class="oculta">
     <div class="bar-roteiro">
       <span class="rot-tit">🧭 Roteiro para a equipe</span>
-      <span class="rot-info" id="rotInfo">Toque num pino e use Adicionar ao roteiro, ou adicione todos do filtro.</span>
-      <button type="button" class="btn claro" onclick="roteiroTodos()">➕ Todos do filtro</button>
+      <span class="rot-info" id="rotInfo">Marque os pontos na lista ao lado do mapa.</span>
+      <button type="button" class="btn claro" onclick="roteiroTodos()">✔️ Marcar todos</button>
       <button type="button" class="btn oculta" id="rotAbrir" onclick="roteiroAbrir()">📍 Abrir no Google Maps</button>
       <button type="button" class="btn claro oculta" id="rotCopiar" onclick="roteiroCopiar()">Copiar link</button>
       <button type="button" class="btn claro oculta" id="rotLimpar" onclick="roteiroLimpar()">Limpar</button>
     </div>
-    <div id="mapaP"></div>
+    <div class="rot-area">
+      <div class="rot-painel" id="rotLista"></div>
+      <div id="mapaP"></div>
+    </div>
     <div class="legenda">
       <span><svg width="12" height="18" viewBox="0 0 22 32"><path d="M11 1C6.9 1 3.5 4.4 3.5 8.6 3.5 14.4 11 31 11 31s7.5-16.6 7.5-22.4C18.5 4.4 15.1 1 11 1Z" fill="#8A5A2B" stroke="#fff" stroke-width="1.6"/><circle cx="11" cy="8.6" r="3.1" fill="#fff"/></svg>PV · Poço de visita</span>
       <span><svg width="12" height="18" viewBox="0 0 22 32"><path d="M11 1C6.9 1 3.5 4.4 3.5 8.6 3.5 14.4 11 31 11 31s7.5-16.6 7.5-22.4C18.5 4.4 15.1 1 11 1Z" fill="#4A5560" stroke="#fff" stroke-width="1.6"/><circle cx="11" cy="8.6" r="3.1" fill="#fff"/></svg>PI · Poço de inspeção</span>
@@ -290,7 +308,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.12 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.13 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -659,6 +677,7 @@ function renderMapa(){
 /* ===== Roteiro: melhor ordem de visita e link do Google Maps ===== */
 function alternaRoteiro(proto){
   if(est.roteiro[proto]) delete est.roteiro[proto]; else est.roteiro[proto] = true;
+  if(est.mapa) est.mapa.closePopup(); // senão o redesenho é pulado com balão aberto
   renderMapa();
 }
 function roteiroTodos(){
@@ -714,6 +733,38 @@ function ordemRoteiro(pts){
   }
   return melhor;
 }
+function montaRotLista(){
+  const g = $('rotLista'); g.innerHTML = '';
+  const lista = filtrados();
+  const comPonto = lista.filter(function(r){ return r.lat != null && r.lon != null; });
+  const semPonto = lista.length - comPonto.length;
+  if(!comPonto.length){
+    g.appendChild(el('div','rot-vazio','Nenhum ponto no filtro para montar roteiro.'));
+    return;
+  }
+  const posicao = Object.create(null);
+  est.ordemRota.forEach(function(r, i){ posicao[r.protocolo] = i + 1; });
+  comPonto.forEach(function(r){
+    const marcado = !!est.roteiro[r.protocolo];
+    const it = el('button','rot-item' + (marcado ? ' marcado' : ''));
+    it.type = 'button';
+    it.onclick = function(){ alternaRoteiro(r.protocolo); };
+    const cx = document.createElement('input');
+    cx.type = 'checkbox'; cx.checked = marcado; cx.tabIndex = -1;
+    it.appendChild(cx);
+    const tx = el('span','rot-tx');
+    const l1 = el('span','rot-l1');
+    if(posicao[r.protocolo]) l1.appendChild(el('span','ordem', posicao[r.protocolo]));
+    l1.appendChild(el('span', null, r.protocolo));
+    tx.appendChild(l1);
+    tx.appendChild(el('span','rot-l2', r.empresa + ' · ' + localDe(r)));
+    it.appendChild(tx);
+    g.appendChild(it);
+  });
+  if(semPonto > 0){
+    g.appendChild(el('div','rot-vazio', semPonto + (semPonto === 1 ? ' registro do filtro veio' : ' registros do filtro vieram') + ' sem ponto no mapa e não ' + (semPonto === 1 ? 'entra' : 'entram') + ' no roteiro.'));
+  }
+}
 function desenhaRoteiro(){
   if(!est.mapa) return;
   est.camadaRota.clearLayers();
@@ -727,7 +778,8 @@ function desenhaRoteiro(){
   $('rotLimpar').classList.toggle('oculta', !tem);
   if(!tem){
     est.ordemRota = [];
-    $('rotInfo').textContent = 'Toque num pino e use Adicionar ao roteiro, ou adicione todos do filtro.';
+    $('rotInfo').textContent = 'Marque os pontos na lista ao lado do mapa.';
+    montaRotLista();
     return;
   }
   const ord = ordemRoteiro(pts);
@@ -746,6 +798,7 @@ function desenhaRoteiro(){
       interactive: false
     }).addTo(est.camadaRota);
   });
+  montaRotLista();
 }
 function linksRoteiro(){
   const urls = [];
