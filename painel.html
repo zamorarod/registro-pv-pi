@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0093DD">
 <meta name="robots" content="noindex">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com https://dqacgeqkhsqymhlxszct.supabase.co https://cdnjs.cloudflare.com; connect-src https://dqacgeqkhsqymhlxszct.supabase.co https://nominatim.openstreetmap.org; object-src 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com https://dqacgeqkhsqymhlxszct.supabase.co https://cdnjs.cloudflare.com; connect-src https://dqacgeqkhsqymhlxszct.supabase.co https://nominatim.openstreetmap.org https://photon.komoot.io; object-src 'none'; base-uri 'none'">
 <title>Painel - Monitoramento Fator K - ETE Suzano</title>
 <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">
@@ -147,6 +147,13 @@
   .ponto-status{font-size:12.5px;color:var(--sutil);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
   .ponto-status.ok{color:var(--ok);font-weight:600}
   .end-busca{width:100%;padding:10px 12px;border:1.5px solid var(--borda-campo);border-radius:10px;background:var(--branco);font:inherit;font-size:13.5px}
+  .end-wrap{position:relative;width:100%}
+  .sug-lista{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--branco);border:1px solid var(--fio);border-radius:10px;box-shadow:0 10px 28px rgba(11,31,51,.18);z-index:1100;max-height:264px;overflow-y:auto}
+  .sug-item{display:flex;flex-direction:column;gap:1px;padding:9px 12px;cursor:pointer;border-bottom:1px solid #EDF0F2}
+  .sug-item:last-child{border-bottom:0}
+  .sug-item:hover,.sug-item.sel{background:var(--selecao)}
+  .sug-l1{font-size:13.5px;font-weight:600}
+  .sug-l2{font-size:12px;color:var(--sutil)}
   .ponto-acoes{display:flex;gap:8px;flex-wrap:wrap}
   .ponto-acoes .btn{flex:1 1 auto;min-width:118px}
   .btn.claro.ativo{background:var(--acento);color:#fff}
@@ -361,7 +368,10 @@
       <div class="rot-pontos">
         <div class="ponto-card">
           <div class="ponto-cab"><span class="ponto-rotulo">🚩 Saída</span><span class="ponto-status" id="stOrigem">Não definida</span></div>
-          <input type="text" id="endOrigem" class="end-busca" placeholder="Rua, número e cidade" autocomplete="off" onkeydown="if(event.key==='Enter')buscaEndereco('origem')">
+          <div class="end-wrap">
+            <input type="text" id="endOrigem" class="end-busca" placeholder="Comece a digitar o endereço…" autocomplete="off" oninput="sugDigita('origem')" onkeydown="sugTecla('origem',event)" onblur="sugSome('origem')">
+            <div class="sug-lista oculta" id="sugOrigem"></div>
+          </div>
           <div class="ponto-acoes">
             <button type="button" class="btn claro mini" id="btnBuscaOrigem" onclick="buscaEndereco('origem')">🔎 Buscar endereço</button>
             <button type="button" class="btn claro mini" id="btnOrigem" onclick="marcarPonto('origem')">📍 Marcar no mapa</button>
@@ -370,7 +380,10 @@
         </div>
         <div class="ponto-card">
           <div class="ponto-cab"><span class="ponto-rotulo">🏁 Volta</span><span class="ponto-status" id="stVolta">Não definida</span></div>
-          <input type="text" id="endVolta" class="end-busca" placeholder="Rua, número e cidade" autocomplete="off" onkeydown="if(event.key==='Enter')buscaEndereco('volta')">
+          <div class="end-wrap">
+            <input type="text" id="endVolta" class="end-busca" placeholder="Comece a digitar o endereço…" autocomplete="off" oninput="sugDigita('volta')" onkeydown="sugTecla('volta',event)" onblur="sugSome('volta')">
+            <div class="sug-lista oculta" id="sugVolta"></div>
+          </div>
           <div class="ponto-acoes">
             <button type="button" class="btn claro mini" id="btnBuscaVolta" onclick="buscaEndereco('volta')">🔎 Buscar endereço</button>
             <button type="button" class="btn claro mini" id="btnVoltaIgual" onclick="voltaIgualSaida()">Mesma da saída</button>
@@ -404,7 +417,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.24 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.25 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -1087,6 +1100,7 @@ function roteiroLimpar(){
   est.origemNome = null; est.voltaNome = null;
   est.modoDefinir = null;
   $('endOrigem').value = ''; $('endVolta').value = '';
+  sugFecha('origem'); sugFecha('volta');
   renderMapa();
 }
 function distKm(a, b){
@@ -1169,11 +1183,105 @@ function removePonto(qual){
   est[qual + 'Nome'] = null;
   if(est.modoDefinir === qual) est.modoDefinir = null;
   $(qual === 'origem' ? 'endOrigem' : 'endVolta').value = '';
+  sugFecha(qual);
   desenhaRoteiro();
 }
 function poeDica(txt){
   $('dicaPonto').textContent = txt;
   $('linhaDica').classList.remove('oculta');
+}
+/* ===== Sugestões de endereço enquanto digita (Photon/OpenStreetMap) ===== */
+const sug = {
+  origem:{ timer:null, itens:[], sel:-1 },
+  volta:{ timer:null, itens:[], sel:-1 }
+};
+const ABREV = { 'av':'Avenida', 'r':'Rua', 'al':'Alameda', 'pc':'Praça', 'pç':'Praça', 'pca':'Praça',
+                'tv':'Travessa', 'trav':'Travessa', 'estr':'Estrada', 'rod':'Rodovia', 'lgo':'Largo' };
+function expandeAbrev(t){
+  // so o 1o termo: "Av Paulista" vira "Avenida Paulista"
+  const m = t.match(/^([A-Za-zÇç]{1,4})\.?\s+(.+)$/);
+  if(m && ABREV[m[1].toLowerCase()]) return ABREV[m[1].toLowerCase()] + ' ' + m[2];
+  return t;
+}
+function campoEnd(qual){ return $(qual === 'origem' ? 'endOrigem' : 'endVolta'); }
+function caixaSug(qual){ return $(qual === 'origem' ? 'sugOrigem' : 'sugVolta'); }
+function sugFecha(qual){
+  const s = sug[qual];
+  if(s.timer){ clearTimeout(s.timer); s.timer = null; }
+  s.itens = []; s.sel = -1;
+  caixaSug(qual).classList.add('oculta');
+}
+function sugSome(qual){ setTimeout(function(){ sugFecha(qual); }, 150); }
+function sugDigita(qual){
+  const s = sug[qual];
+  if(s.timer) clearTimeout(s.timer);
+  s.timer = setTimeout(function(){ sugConsulta(qual); }, 300);
+}
+function sugConsulta(qual){
+  const txt = campoEnd(qual).value.trim();
+  if(txt.length < 3){ sugFecha(qual); return; }
+  const c = est.mapa ? est.mapa.getCenter() : { lat:-23.54, lng:-46.4 };
+  const url = 'https://photon.komoot.io/api/?limit=5&lang=default&lat=' + c.lat + '&lon=' + c.lng
+    + '&q=' + encodeURIComponent(expandeAbrev(txt));
+  comTimeout(url, {}, 10000).then(function(r){ return r.json(); }).then(function(d){
+    if(campoEnd(qual).value.trim() !== txt) return; // a pessoa ja digitou mais; essa resposta ficou velha
+    const vistos = Object.create(null);
+    const feats = (d.features || []).filter(function(f){
+      if(!(f.properties && f.properties.countrycode === 'BR' && f.geometry && f.geometry.coordinates)) return false;
+      const r = rotuloSug(f.properties), chave = r.l1 + '|' + r.l2; // mesma rua em trechos diferentes = uma sugestao so
+      if(vistos[chave]) return false;
+      vistos[chave] = true;
+      return true;
+    });
+    sugMostra(qual, feats);
+  }).catch(function(){ sugFecha(qual); });
+}
+function rotuloSug(p){
+  const l1 = [p.name || p.street, p.housenumber].filter(Boolean).join(', ');
+  const l2 = [p.district, p.city, p.state].filter(Boolean).join(' · ');
+  return { l1: l1 || l2, l2: l1 ? l2 : '' };
+}
+function sugMostra(qual, feats){
+  const s = sug[qual], g = caixaSug(qual);
+  s.itens = feats; s.sel = -1;
+  g.innerHTML = '';
+  if(!feats.length){ g.classList.add('oculta'); return; }
+  feats.forEach(function(f, i){
+    const p = f.properties, r = rotuloSug(p);
+    const it = el('div','sug-item');
+    it.appendChild(el('span','sug-l1', r.l1));
+    if(r.l2) it.appendChild(el('span','sug-l2', r.l2));
+    it.onmousedown = function(ev){ ev.preventDefault(); sugEscolhe(qual, i); }; // antes do blur do campo
+    g.appendChild(it);
+  });
+  g.classList.remove('oculta');
+}
+function sugMarca(qual){
+  const s = sug[qual];
+  Array.prototype.forEach.call(caixaSug(qual).children, function(ch, i){
+    ch.classList.toggle('sel', i === s.sel);
+    if(i === s.sel) ch.scrollIntoView({ block:'nearest' });
+  });
+}
+function sugEscolhe(qual, i){
+  const f = sug[qual].itens[i];
+  if(!f) return;
+  const p = f.properties, r = rotuloSug(p);
+  campoEnd(qual).value = r.l1 + (p.city && r.l1.indexOf(p.city) < 0 ? ', ' + p.city : '');
+  sugFecha(qual);
+  pontoAchado(qual, f.geometry.coordinates[1], f.geometry.coordinates[0],
+    r.l1 + (p.district || p.city ? ' · ' + (p.district || p.city) : ''));
+}
+function sugTecla(qual, ev){
+  const s = sug[qual], aberta = !caixaSug(qual).classList.contains('oculta') && s.itens.length > 0;
+  if(ev.key === 'ArrowDown' && aberta){ ev.preventDefault(); s.sel = (s.sel + 1) % s.itens.length; sugMarca(qual); }
+  else if(ev.key === 'ArrowUp' && aberta){ ev.preventDefault(); s.sel = (s.sel - 1 + s.itens.length) % s.itens.length; sugMarca(qual); }
+  else if(ev.key === 'Escape'){ sugFecha(qual); }
+  else if(ev.key === 'Enter'){
+    ev.preventDefault();
+    if(aberta){ sugEscolhe(qual, s.sel >= 0 ? s.sel : 0); }
+    else buscaEndereco(qual);
+  }
 }
 function pontoAchado(qual, lat, lon, nome){
   est[qual] = { lat: lat, lon: lon };
@@ -1193,7 +1301,7 @@ function buscaEndereco(qual){
     return;
   }
   btn.disabled = true; btn.textContent = '⏳ Buscando…';
-  let url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&accept-language=pt-BR&q=' + encodeURIComponent(txt);
+  let url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&accept-language=pt-BR&q=' + encodeURIComponent(expandeAbrev(txt));
   if(est.mapa){
     const b = est.mapa.getBounds(); // da preferencia a resultados perto da regiao que esta na tela
     url += '&viewbox=' + b.getWest() + ',' + b.getNorth() + ',' + b.getEast() + ',' + b.getSouth();
