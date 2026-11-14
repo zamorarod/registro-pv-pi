@@ -111,6 +111,13 @@
   .sit-btn.atual.Encaminhado{background:#FFF1D6;color:#8A5A00;border-color:#C9720E}
   .sit-btn.atual.Tratado{background:#E2F6E9;color:#1B7A3D;border-color:#1B7A3D}
   .det-sit-msg{font-size:13px;color:var(--erro);font-weight:600}
+  /* modo contratada: tela enxuta, so o trabalho pendente */
+  body.modo-contratada .cards,body.modo-contratada #campoSituacao{display:none}
+  .concluir{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--fio);padding-top:12px}
+  .concluir .acoes{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .concluir .det-fotos:empty{display:none}
+  .concluir img{cursor:pointer}
+  .det-sub{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--sutil)}
   .det-hist{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--sutil);border-top:1px solid var(--fio);padding-top:10px}
   .det-hist .rot{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
   .det-hist b{color:var(--muted);font-weight:600}
@@ -284,7 +291,7 @@
         <option value="PI">PI</option>
       </select>
     </div>
-    <div class="campo">
+    <div class="campo" id="campoSituacao">
       <label for="fSituacao">Situação</label>
       <select id="fSituacao" onchange="render()">
         <option value="">Todas</option>
@@ -366,7 +373,7 @@
   <div class="detalhe" role="dialog" aria-modal="true" id="detalhe"></div>
 </div>
 
-<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.21 · 14/11/2026</footer>
+<footer>Monitoramento Fator K - ETE Suzano · painel da gestão · versão 2.22 · 14/11/2026</footer>
 
 <script>
 "use strict";
@@ -452,6 +459,7 @@ function sair(){
   try{ localStorage.removeItem('pvpi_painel_rt'); }catch(e){}
   est.token = null; est.renovador = null; est.regs = []; est.fotoUrl = Object.create(null);
   est.papel = 'consulta'; est.usuario = '';
+  document.body.classList.remove('modo-contratada');
   $('quemLogado').textContent = ''; $('senha').value = '';
   if(est.timer) clearInterval(est.timer);
   fechaDetalhe();
@@ -482,10 +490,12 @@ function abrePainel(){
   est.papel = 'consulta';
   chama('/rest/v1/perfis?select=papel')
     .then(function(r){ return r.ok ? r.json() : []; })
-    .then(function(rows){ if(rows[0] && rows[0].papel === 'gestor') est.papel = 'gestor'; })
+    .then(function(rows){ if(rows[0] && (rows[0].papel === 'gestor' || rows[0].papel === 'contratada')) est.papel = rows[0].papel; })
     .catch(function(){})
     .finally(function(){
-      $('quemLogado').textContent = (est.usuario ? est.usuario + ' · ' : '') + (est.papel === 'gestor' ? 'Gestor' : 'Consulta');
+      const rotulo = est.papel === 'gestor' ? 'Gestor' : est.papel === 'contratada' ? 'Contratada' : 'Consulta';
+      $('quemLogado').textContent = (est.usuario ? est.usuario + ' · ' : '') + rotulo;
+      document.body.classList.toggle('modo-contratada', est.papel === 'contratada');
       carrega(true);
     });
   if(est.timer) clearInterval(est.timer);
@@ -735,11 +745,14 @@ function abreDetalhe(r){
       stB.appendChild(b);
     });
     stB.appendChild(el('span','det-sit-msg',''));
+  } else if(est.papel === 'contratada'){
+    stB.appendChild(el('span','sit ' + sitDe(r), sitDe(r)));
   } else {
     stB.appendChild(el('span','sit ' + sitDe(r), sitDe(r)));
     stB.appendChild(el('span','det-sit-rot','Só o gestor altera a situação.'));
   }
   d.appendChild(stB);
+  if(est.papel === 'contratada' && sitDe(r) === 'Encaminhado') d.appendChild(blocoConcluir(r));
   // historico da tratativa: quem mudou a situacao e quando (gravado pelo banco)
   const hx = el('div','det-hist oculta');
   d.appendChild(hx);
@@ -757,18 +770,29 @@ function abreDetalhe(r){
       hx.classList.remove('oculta');
     })
     .catch(function(){});
-  const fx = el('div','det-fotos');
-  (r.fotos||[]).forEach(function(caminho, i){
-    const slot = el('span','pend','Carregando foto '+(i+1)+'…');
-    fx.appendChild(slot);
-    urlFoto(caminho).then(function(u){
-      const la = el('a'); la.href = u; la.target='_blank'; la.rel='noopener'; la.title='Abrir a foto '+(i+1)+' em tamanho real';
-      const im = document.createElement('img'); im.src = u; im.alt = 'Foto '+(i+1)+' de '+r.protocolo; im.loading='lazy';
-      im.onerror = function(){ delete est.fotoUrl[caminho]; la.replaceWith(el('span','pend','Foto expirou. Feche e abra a ficha de novo.')); };
-      la.appendChild(im); fx.replaceChild(la, slot);
-    }).catch(function(){ slot.textContent = 'Foto indisponível'; });
-  });
-  if((r.fotos||[]).length) d.appendChild(fx);
+  function montaFotos(caminhos){
+    const fx = el('div','det-fotos');
+    caminhos.forEach(function(caminho, i){
+      const slot = el('span','pend','Carregando foto '+(i+1)+'…');
+      fx.appendChild(slot);
+      urlFoto(caminho).then(function(u){
+        const la = el('a'); la.href = u; la.target='_blank'; la.rel='noopener'; la.title='Abrir a foto '+(i+1)+' em tamanho real';
+        const im = document.createElement('img'); im.src = u; im.alt = 'Foto '+(i+1)+' de '+r.protocolo; im.loading='lazy';
+        im.onerror = function(){ delete est.fotoUrl[caminho]; la.replaceWith(el('span','pend','Foto expirou. Feche e abra a ficha de novo.')); };
+        la.appendChild(im); fx.replaceChild(la, slot);
+      }).catch(function(){ slot.textContent = 'Foto indisponível'; });
+    });
+    return fx;
+  }
+  const temDepois = (r.fotos_depois||[]).length > 0;
+  if((r.fotos||[]).length){
+    if(temDepois) d.appendChild(el('div','det-sub','Fotos do registro (antes)'));
+    d.appendChild(montaFotos(r.fotos));
+  }
+  if(temDepois){
+    d.appendChild(el('div','det-sub','Fotos do serviço concluído (depois)'));
+    d.appendChild(montaFotos(r.fotos_depois));
+  }
   const ac = el('div','det-acoes');
   if(r.lat != null && r.lon != null){
     const am = el('a'); am.className='btn claro'; am.textContent='📍 Abrir no Google Maps';
@@ -780,6 +804,112 @@ function abreDetalhe(r){
   d.appendChild(ac);
   $('fundo').classList.remove('oculta');
   d.setAttribute('tabindex','-1'); d.focus();
+}
+/* ===== Contratada: anexa a foto do "depois" e conclui o servico ===== */
+function preparaFotoDepois(arquivo){
+  // reduz a foto e grava um carimbo simples (Depois + data/hora) na imagem
+  return new Promise(function(res, rej){
+    const img = new Image();
+    img.onload = function(){
+      const MAX = 1600, esc = Math.min(1, MAX / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * esc); c.height = Math.round(img.height * esc);
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      const ag = new Date();
+      const txt = 'Depois · ' + p2(ag.getDate()) + '/' + p2(ag.getMonth()+1) + '/' + ag.getFullYear() + ' ' + p2(ag.getHours()) + ':' + p2(ag.getMinutes());
+      const fs = Math.max(15, Math.round(c.width * 0.026)), alt = fs + 16;
+      ctx.fillStyle = 'rgba(11,31,51,.78)'; ctx.fillRect(0, c.height - alt, c.width, alt);
+      ctx.fillStyle = '#fff'; ctx.font = '600 ' + fs + 'px system-ui, sans-serif'; ctx.textBaseline = 'top';
+      ctx.fillText(txt, 12, c.height - alt + 8);
+      URL.revokeObjectURL(img.src);
+      c.toBlob(function(b){ b ? res(b) : rej('sem blob'); }, 'image/jpeg', .85);
+    };
+    img.onerror = function(){ URL.revokeObjectURL(img.src); rej('leitura'); };
+    img.src = URL.createObjectURL(arquivo);
+  });
+}
+function blocoConcluir(r){
+  const cx = el('div','concluir');
+  cx.appendChild(el('div','det-sit-rot','Serviço feito? Anexe a foto do local pronto (até 2) e marque como Tratado.'));
+  const dep = []; // {blob, url, id}
+  const fotosBox = el('div','det-fotos');
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*'; inp.capture = 'environment'; inp.className = 'oculta';
+  const acoes = el('div','acoes');
+  const bFoto = el('button','btn claro','📷 Foto do depois'); bFoto.type = 'button';
+  const bOk = el('button','btn','✅ Marcar como Tratado'); bOk.type = 'button'; bOk.disabled = true;
+  const msg = el('span','det-sit-msg','');
+  function atualiza(){
+    bOk.disabled = dep.length === 0;
+    bFoto.disabled = dep.length >= 2;
+  }
+  bFoto.onclick = function(){ inp.click(); };
+  inp.onchange = function(){
+    const f = inp.files && inp.files[0]; inp.value = '';
+    if(!f) return;
+    msg.style.color = 'var(--sutil)'; msg.textContent = 'Preparando a foto…';
+    preparaFotoDepois(f).then(function(b){
+      const url = URL.createObjectURL(b);
+      const item = { blob: b, url: url, id: Date.now().toString(36) + Math.floor(Math.random()*1679616).toString(36) };
+      dep.push(item);
+      const im = document.createElement('img');
+      im.src = url; im.alt = 'Foto do depois'; im.title = 'Toque para remover esta foto';
+      im.onclick = function(){
+        const i = dep.indexOf(item);
+        if(i >= 0){ dep.splice(i, 1); URL.revokeObjectURL(url); im.remove(); atualiza(); }
+      };
+      fotosBox.appendChild(im);
+      msg.textContent = '';
+      atualiza();
+    }).catch(function(){
+      msg.style.color = 'var(--erro)'; msg.textContent = 'Não foi possível ler essa foto. Tire de novo.';
+    });
+  };
+  bOk.onclick = function(){
+    if(!dep.length) return;
+    bOk.disabled = true; bFoto.disabled = true;
+    msg.style.color = 'var(--sutil)';
+    const caminhos = dep.map(function(x, i){ return r.protocolo + '/depois' + (i+1) + '-' + x.id + '.jpg'; });
+    let fila = Promise.resolve();
+    dep.forEach(function(x, i){
+      fila = fila.then(function(){
+        msg.textContent = 'Enviando foto ' + (i+1) + ' de ' + dep.length + '…';
+        return chama('/storage/v1/object/fotos/' + caminhos[i], {
+          method:'POST', headers:{ 'Content-Type':'image/jpeg' }, body: x.blob
+        }).then(function(rr){
+          if(rr.ok || rr.status === 409) return; // 409 = esta foto ja subiu numa tentativa anterior
+          throw 'foto HTTP ' + rr.status;
+        });
+      });
+    });
+    fila.then(function(){
+      msg.textContent = 'Gravando a conclusão…';
+      return chama('/rest/v1/rpc/conclui_tratativa', {
+        method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ p_protocolo: r.protocolo, p_fotos: caminhos })
+      });
+    }).then(function(rr){
+      if(!rr.ok) throw 'HTTP ' + rr.status;
+      return rr.json();
+    }).then(function(res){
+      if(res !== 'concluido') throw res;
+      msg.style.color = 'var(--ok)'; msg.textContent = '✔ Serviço concluído. Obrigado!';
+      setTimeout(function(){ fechaDetalhe(); carrega(true); }, 1200);
+    }).catch(function(e){
+      bOk.disabled = false; bFoto.disabled = dep.length >= 2;
+      msg.style.color = 'var(--erro)';
+      msg.textContent = (e === 'nao_encontrado')
+        ? 'Este ponto não está mais pendente (pode já ter sido concluído). Atualize a lista.'
+        : 'Não deu para concluir agora. Verifique a internet e tente de novo.';
+      console.error(e);
+    });
+  };
+  acoes.appendChild(bFoto); acoes.appendChild(bOk); acoes.appendChild(msg);
+  cx.appendChild(fotosBox);
+  cx.appendChild(inp);
+  cx.appendChild(acoes);
+  return cx;
 }
 function mudaSituacao(r, nova){
   if(est.papel !== 'gestor') return; // o banco tambem recusa; aqui so evita clique perdido
@@ -1243,7 +1373,7 @@ function enquadra(){
 }
 function urlFoto(caminho){
   // só aceita caminhos no formato que o app grava (dado do banco é dado não confiável)
-  if(typeof caminho !== 'string' || !/^(PV|PI)-\d{4}-(\d{2}-)?[A-Za-z0-9]{4,14}\/foto[1-4](-[a-z0-9]{1,14})?\.jpg$/.test(caminho))
+  if(typeof caminho !== 'string' || !/^(PV|PI)-\d{4}-(\d{2}-)?[A-Za-z0-9]{4,14}\/(foto|depois)[1-4](-[a-z0-9]{1,14})?\.jpg$/.test(caminho))
     return Promise.reject('caminho de foto inválido');
   const c = est.fotoUrl[caminho];
   if(c && Date.now() < c.vence) return c.p; // link assinado vale 12 h; renova sozinho antes de vencer
@@ -1272,12 +1402,13 @@ function exportaPlanilha(){
     if(/^[=+\-@\t\r]/.test(s)) s = "'" + s; // impede fórmula embutida de rodar no Excel
     return '"' + s.replace(/"/g,'""') + '"';
   }
-  const linhas = [['Protocolo','Tipo','Situação','Nome','Cliente','Data e hora','Local','Nº referência','Observação','Qtd fotos','Link do mapa','Latitude','Longitude'].map(cel).join(';')];
+  const linhas = [['Protocolo','Tipo','Situação','Nome','Cliente','Data e hora','Local','Nº referência','Observação','Qtd fotos','Qtd fotos depois','Link do mapa','Latitude','Longitude'].map(cel).join(';')];
   lista.forEach(function(r){
     linhas.push([
       r.protocolo, r.tipo, sitDe(r), r.nome, r.empresa, fmtData(r.registrado_em),
       r.endereco || '', r.num_referencia || '', r.observacao || '',
       (r.fotos&&r.fotos.length)||0,
+      (r.fotos_depois&&r.fotos_depois.length)||0,
       (r.lat != null && r.lon != null) ? 'https://maps.google.com/?q='+r.lat+','+r.lon : '',
       r.lat, r.lon
     ].map(cel).join(';'));
